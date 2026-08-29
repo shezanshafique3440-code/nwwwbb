@@ -1,0 +1,93 @@
+CLUB21 MALL — localhost par kaise chalayen
+==========================================
+
+1) NODE INSTALL KAREIN (sirf ek dafa)
+   https://nodejs.org  se LTS version download karein (22.5 ya us se upar).
+   Install ke baad terminal / CMD kholein aur likhein:
+
+       node --version
+
+   Agar v22.5.0 ya us se bara number aaye to sab theek hai.
+
+
+2) ZIP KHOLEIN
+   club21mall.zip ko kisi bhi folder mein extract karein.
+   Andar "club21mall" naam ka folder milega.
+
+
+3) US FOLDER MEIN TERMINAL KHOLEIN
+
+   Windows : folder ke andar address bar mein  cmd  likh kar Enter
+   Mac     : folder par right click > Services > New Terminal at Folder
+   Linux   : folder par right click > Open in Terminal
+
+
+4) SERVER CHALAYEN
+
+       npm start
+
+   "Club21 Mall running on http://localhost:3000" nazar aaye to ho gaya.
+   (npm install ki zaroorat NAHI hai — project ki koi dependency hi nahi.)
+
+
+5) BROWSER MEIN KHOLEIN
+
+   Admin panel : http://localhost:3000
+                 email     admin@club21mall.com
+                 password  password
+
+   Seller app  : http://localhost:3000/seller/
+                 mobile    0000000080
+                 password  password
+
+
+6) MOBILE PAR DEKHNA HO
+
+   Aasan tareeqa : browser mein F12 dabayen, phir phone wala icon,
+                   aur width 390 set karein.
+
+   Asli phone se : computer par likhein
+
+                       ipconfig      (Windows)
+                       hostname -I   (Mac / Linux)
+
+                   jo IP mile (misal 192.168.1.20), phone ko usi Wi-Fi par
+                   rakh kar browser mein kholein:
+
+                       http://192.168.1.20:3000/seller/
+
+
+7) SERVER BAND KARNA
+   Terminal mein  Ctrl + C
+
+
+GITHUB PAR PUSH KARNA
+---------------------
+Zip ke sath club21mall-history.bundle bhi mila hai (poori git history).
+
+    git clone club21mall-history.bundle club21mall-git
+    cd club21mall-git
+    git remote set-url origin https://github.com/shezanshafique3440-code/nwwwbb.git
+    git push -u origin claude/new-website-qk1tpo
+
+
+AGAR KUCH GHALAT HO JAYE
+------------------------
+Data reset karna ho (sab kuch shuru wali halat mein):
+
+       npm run reset
+       npm start
+
+Port 3000 pehle se busy ho:
+
+       PORT=4000 npm start          (Mac / Linux)
+       set PORT=4000 && npm start   (Windows CMD)
+
+
+ANDAR KYA HAI
+-------------
+  index.html aur baqi 22 pages    admin panel
+  seller/                          seller app ke 25 pages
+  assets/css, assets/js            styles aur scripts
+  server/                          Node + SQLite backend
+  README.md                        poori technical documentation
