@@ -42,8 +42,8 @@ disk to browse the same panel against seed data held in the browser.
 | `sellers.html` | Sellers — VIP tier, balance, orders, team size |
 | `customers.html` | Customers — owning agent, balance, status |
 | `archived-users.html` | Soft-deleted accounts, with restore |
-| `login.html` | Sign-in screen |
-| `register.html` | Sign-up screen, prefills the inviter from `?inviter=` |
+| `login.html` | Sign-in screen — the one door into both apps, by email or mobile |
+| `register.html` | Sign-up screen — creates a seller, prefills the inviter from `?inviter=` |
 | `404.html` | Not-found page |
 
 ### Seller app (`seller/`)
@@ -53,18 +53,18 @@ disk to browse the same panel against seed data held in the browser.
 | `seller/welcome.html` | The shop window a visitor sees before signing in |
 | `seller/login.html` | Sign in or register with a mobile number |
 | `seller/mall.html` | MALL — online customer service hours |
-| `seller/index.html` | Home — banner, quick actions, withdrawal ticker, partners |
+| `seller/index.html` | Home — rolling banner, quick actions, a withdrawal ticker that keeps scrolling, partners |
 | `seller/recharge.html` | Recharge amount, presets and payment method |
 | `seller/start.html` | Balance / commission summary and *start grabbing orders* |
 | `seller/orders.html` | Orders with ALL / PENDING / COMPLETED / FREEZING tabs |
 | `seller/my.html` | Account header, wallet card and the eight account tiles |
 | `seller/account.html` | Account details — the money ledger, rebates tagged |
 | `seller/recharge-record.html` | Recharge record with its cumulative total |
-| `seller/bank.html` | Bank card on file |
+| `seller/bank.html` | Bank card on file (the same form the wallet screen shows for a bank payout) |
 | `seller/password.html` | Password hub — login or withdrawal password |
 | `seller/funds.html` | Fund details — recharges, withdrawals and commissions |
 | `seller/withdraw-records.html` | Withdrawal record with its cumulative total |
-| `seller/wallet.html` | USDT wallet address |
+| `seller/wallet.html` | Wallet management — the payout method decides whether it asks for a crypto address or a bank card |
 | `seller/usdt.html` | USDT network details and limits |
 | `seller/password.html` | Change password |
 | `seller/linked.html` | Linked Account — benefits, unlock conditions and the binding |
@@ -96,6 +96,17 @@ disk to browse the same panel against seed data held in the browser.
   account or delete it for good.
 - Auth screens matching the panel: password show/hide, remember-me, and a
   register page that reads the inviter out of the referral link's query string.
+- One front door: the panel's login takes an email or a mobile number and sends
+  the account to its own side, sign-up there creates a seller, and a visitor who
+  is already signed in is handed back rather than shown the form again.
+- The seller home carries five promotion images that roll on their own every
+  four seconds and wrap at the end (tap a dot to jump), plus a withdrawal
+  ticker that scrolls without stopping — two copies of the list, so the loop
+  has no seam. Both stand still when the tab is hidden or the reader asks for
+  reduced motion.
+- One look across both sides: the seller app is painted in the panel's palette
+  and draws every symbol the panel already has from the same icon set, so the
+  two apps read as one product.
 - Responsive down to phone widths: the sidebar becomes an off-canvas drawer,
   the datatable chrome stacks, tables scroll sideways with their action column
   pinned to the right edge, forms and dialogs go to one column, and icon-only
@@ -114,13 +125,21 @@ npm start          # then open http://localhost:3000
 
 ### Sign in
 
-| Side | Address | Credentials |
-| --- | --- | --- |
-| Admin panel | `http://localhost:3000` | `admin@club21mall.com` / `password` |
-| Seller app | `http://localhost:3000/seller/` | mobile `0000000080` / `password` |
+`http://localhost:3000` is the one door into both apps. Sign in there and the
+account's role decides which side opens.
 
-The seller signs in with a **mobile number**, the administrator with an
-**email** — that is how each side's login screen is built.
+| Who | Credentials | Lands on |
+| --- | --- | --- |
+| Administrator | `admin@club21mall.com` / `password` | the panel |
+| Seller | mobile `0000000080` / `password` | the seller app |
+
+Signing up on that page creates a **seller**, which is why it asks for a mobile
+number, and drops the new account straight into the seller app.
+
+Each side keeps its own screen as well — `/seller/login.html` is the phone-shaped
+one — and both accept either role, sending each account where it belongs. A
+signed-in visitor who opens a login screen is handed back to their own side
+rather than being asked to sign in twice.
 
 ### A five-minute tour
 
@@ -217,7 +236,7 @@ no seller can read another's orders.
 | GET | `/api/seller/team` | invite link, level totals and member list |
 | GET | `/api/seller/funds` | the ledger behind Fund details |
 | GET | `/api/seller/withdrawals` | this seller's withdrawal records |
-| GET/PUT | `/api/seller/wallet` | USDT payout address |
+| GET/PUT | `/api/seller/wallet` | payout method, crypto address and the bank card behind it |
 | GET/POST/DELETE | `/api/seller/linked` | the linked account: state, binding and unbinding |
 | POST | `/api/seller/password` | change the login or withdrawal password |
 | GET | `/api/seller/ledger` | every movement behind Account Details |
@@ -270,8 +289,9 @@ assets/
   js/auth.js        login / register screens
   js/store.js       API client with an offline fallback
   js/seller.js      the seller app: shell, screens and its API calls
-  css/seller.css    seller app styles (mobile, teal + gold)
+  css/seller.css    seller app styles (mobile, same palette as the panel)
   img/favicon.svg   brand mark
+  img/ads/          the promotion images the seller home rolls through
 seller/             the seller app's 25 pages, one file per screen
 server/
   index.js          http server: JSON API + static files

@@ -32,13 +32,21 @@ CLUB21 MALL — localhost par kaise chalayen
 
 5) BROWSER MEIN KHOLEIN
 
-   Admin panel : http://localhost:3000
-                 email     admin@club21mall.com
-                 password  password
+   http://localhost:3000  --  yehi dono ka darwaza hai.
+   Jo login kare, uska role khud faisla karta hai kahan jana hai.
 
-   Seller app  : http://localhost:3000/seller/
-                 mobile    0000000080
-                 password  password
+   Admin   :  email   admin@club21mall.com
+              password  password
+              ->  admin panel khulta hai
+
+   Seller  :  mobile  0000000080
+              password  password
+              ->  seller app khulta hai
+
+   Naya account : usi page par "Create an account"
+                  mobile number se sign-up karo -> seller ban jata hai
+
+   Seller ka apna page bhi hai : http://localhost:3000/seller/
 
 
 6) MOBILE PAR DEKHNA HO
@@ -61,16 +69,6 @@ CLUB21 MALL — localhost par kaise chalayen
    Terminal mein  Ctrl + C
 
 
-GITHUB PAR PUSH KARNA
----------------------
-Zip ke sath club21mall-history.bundle bhi mila hai (poori git history).
-
-    git clone club21mall-history.bundle club21mall-git
-    cd club21mall-git
-    git remote set-url origin https://github.com/shezanshafique3440-code/nwwwbb.git
-    git push -u origin claude/new-website-qk1tpo
-
-
 AGAR KUCH GHALAT HO JAYE
 ------------------------
 Data reset karna ho (sab kuch shuru wali halat mein):
@@ -82,12 +80,3 @@ Port 3000 pehle se busy ho:
 
        PORT=4000 npm start          (Mac / Linux)
        set PORT=4000 && npm start   (Windows CMD)
-
-
-ANDAR KYA HAI
--------------
-  index.html aur baqi 22 pages    admin panel
-  seller/                          seller app ke 25 pages
-  assets/css, assets/js            styles aur scripts
-  server/                          Node + SQLite backend
-  README.md                        poori technical documentation

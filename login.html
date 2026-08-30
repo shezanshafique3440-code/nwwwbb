@@ -21,14 +21,14 @@
   <div class="auth-card">
     <div class="auth-brand"><svg class="brand-logo" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="bagG" x1="8" y1="20" x2="56" y2="60" gradientUnits="userSpaceOnUse"><stop stop-color="#3B82F6"/><stop offset="1" stop-color="#1E40AF"/></linearGradient><linearGradient id="starG" x1="18" y1="4" x2="46" y2="26" gradientUnits="userSpaceOnUse"><stop stop-color="#FDE047"/><stop offset="1" stop-color="#F59E0B"/></linearGradient></defs><path d="M10 22h44l-4 34a4 4 0 0 1-4 3.6H18A4 4 0 0 1 14 56z" fill="url(#bagG)"/><path d="M22 26V19a10 10 0 0 1 20 0v7" stroke="#1E3A8A" stroke-width="3.4" stroke-linecap="round"/><path d="M14 40c8 4 14 5 20 3s12-5 20-3l-2.2 16a4 4 0 0 1-4 3.6H18A4 4 0 0 1 14 56z" fill="#22C55E" opacity=".85"/><path d="M32 2l4.6 9.4 10.4 1.5-7.5 7.3 1.8 10.3L32 25.6l-9.3 4.9 1.8-10.3-7.5-7.3 10.4-1.5z" fill="url(#starG)"/></svg><span class="brand-text"><b>Club21</b><span>Mall</span></span></div>
     <h1 class="auth-title">Welcome to Club21 Mall! &#128075;</h1>
-    <p class="auth-sub">Please sign in to your account and start managing the mall.</p>
+    <p class="auth-sub">Sign in and your account takes you where you belong &mdash; the panel or the seller app.</p>
 
-    <div class="auth-note">Demo panel &mdash; any email and password will get you in.</div>
+    <div class="auth-note">Administrators sign in with their email, sellers with their mobile number.</div>
 
     <form data-auth="login" novalidate>
       <div class="field">
-        <label for="email">Email or Username</label>
-        <input class="form-input" id="email" type="text" value="admin@club21mall.com" placeholder="Enter your email" required>
+        <label for="email">Email or mobile number</label>
+        <input class="form-input" id="email" type="text" value="admin@club21mall.com" placeholder="admin@club21mall.com or 0000000080" required>
       </div>
       <div class="field">
         <label for="password">Password</label>
@@ -39,7 +39,7 @@
       </div>
       <div class="auth-row">
         <label class="form-check"><input type="checkbox" checked> Remember me</label>
-        <a href="javascript:void(0)">Forgot password?</a>
+        <a href="javascript:void(0)" data-forgot>Forgot password?</a>
       </div>
       <button class="btn btn-primary btn-block" type="submit">Sign in</button>
     </form>

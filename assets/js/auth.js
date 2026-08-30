@@ -1,6 +1,7 @@
 /* =========================================================
-   Login / register screens. Demo-only: no backend call is
-   made, submitting simply drops the user into the dashboard.
+   Login / register screens — the one door into both apps.
+   Sign in with an email or a mobile number; the account's
+   role decides which side opens.
    ========================================================= */
 (function () {
   const icon = window.ICONS;
@@ -12,7 +13,20 @@
     if (b) b.innerHTML = icon(t === 'dark' ? 'moon' : 'sun', 22);
   }
 
+  /* a seller belongs in the seller app, everyone else in the panel */
+  function homeFor(user) {
+    return user && user.role === 'Seller' ? 'seller/index.html' : 'index.html';
+  }
+
   function boot() {
+    /* someone who is already signed in has no business on these screens */
+    fetch('/api/auth/me', { credentials: 'same-origin' })
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (data) {
+        if (data && data.user) window.location.href = homeFor(data.user);
+      })
+      .catch(function () { /* no server: the static demo carries on */ });
+
     const themeBtn = document.getElementById('themeToggle');
     if (themeBtn) {
       let saved = 'light';
@@ -44,10 +58,23 @@
     const form = document.querySelector('form[data-auth]');
     if (!form) return;
 
+
     const errorBox = document.createElement('div');
     errorBox.className = 'auth-error';
     errorBox.style.display = 'none';
     form.insertBefore(errorBox, form.firstChild);
+
+    /* there is no mail service behind this build, so say who to ask instead
+       of pretending a reset link went out */
+    const forgot = document.querySelector('[data-forgot]');
+    if (forgot) {
+      forgot.addEventListener('click', function () {
+        errorBox.textContent =
+          'Passwords are reset by an administrator — ask yours to set a new one from ' +
+          'Users, or use Profile → Security once you are signed in.';
+        errorBox.style.display = 'block';
+      });
+    }
 
     function fail(message, btn, label) {
       errorBox.textContent = message;
@@ -74,16 +101,28 @@
       btn.disabled = true;
       btn.textContent = mode === 'register' ? 'Creating account...' : 'Signing in...';
 
+      /* the field takes an email or a mobile number, so send whichever it is */
+      const who = form.querySelector('#email').value.trim();
+      const asPhone = /^[+\d][\d\s-]{5,}$/.test(who);
+
+      /* signing up here creates a seller, and a seller is known by their
+         mobile number — so say that rather than making a dead account */
+      if (mode === 'register' && !asPhone) {
+        return fail('Enter a mobile number to sign up.', btn, label);
+      }
+
       const payload =
         mode === 'register'
           ? {
               name: form.querySelector('#name').value.trim(),
-              email: form.querySelector('#email').value.trim(),
+              email: asPhone ? '' : who,
+              phone: asPhone ? who : '',
               password: form.querySelector('#password').value,
               inviter: form.querySelector('#inviter').value.trim()
             }
           : {
-              email: form.querySelector('#email').value.trim(),
+              email: asPhone ? '' : who,
+              phone: asPhone ? who : '',
               password: form.querySelector('#password').value
             };
 
@@ -99,7 +138,7 @@
             return data;
           });
         })
-        .then(function () { window.location.href = 'index.html'; })
+        .then(function (data) { window.location.href = homeFor(data.user); })
         .catch(function (err) {
           /* no backend running: the static demo signs in without one */
           if (err instanceof TypeError) return (window.location.href = 'index.html');

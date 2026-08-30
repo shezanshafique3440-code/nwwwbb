@@ -1123,10 +1123,17 @@ function sellerApi(req, res, me, parts, method, body) {
   if (head === 'wallet') {
     const seller = q.userById.get(me.id);
     if (method === 'GET') {
+      /* the screen shows either the address or the bank card, depending on
+         the method, so it gets both in one call */
       return send(res, 200, {
         wallet: seller.wallet || '',
         method: seller.bank_method || '',
-        methods: SEED.seller.withdrawMethods
+        methods: SEED.seller.withdrawMethods,
+        bank: seller.bank_name || '',
+        beneficiary: seller.bank_beneficiary || '',
+        account: seller.bank_account || '',
+        ifsc: seller.bank_ifsc || '',
+        banks: SEED.seller.banks
       });
     }
     if (method === 'PUT') {

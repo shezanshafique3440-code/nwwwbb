@@ -1,25 +1,30 @@
 /* =========================================================
    Club21 Mall — seller mobile app
-   Phone-width layout, teal + gold, bottom tab bar.
+   Phone-width layout in the panel's palette, bottom tab bar.
    ========================================================= */
 
+/* The seller app wears the panel's colours. The --s-* names are kept because
+   the whole stylesheet is written against them; each one now points at the
+   value the admin side uses, so the two apps read as one product. */
 :root {
-  --s-teal: #16b3ae;
-  --s-teal-dark: #0f9c97;
-  --s-teal-soft: #e6f7f6;
-  --s-gold-1: #b07d12;
+  --s-teal: #7367f0;          /* the panel's primary */
+  --s-teal-dark: #5e50ee;
+  --s-teal-soft: #e5e2fd;
+  --s-gold-1: #b07d12;        /* the brand mark keeps its gold */
   --s-gold-2: #e9c159;
-  --s-ink: #333333;
-  --s-muted: #9a9aa2;
-  --s-line: #ececf1;
-  --s-bg: #f7f7f9;
+  --s-ink: #5d596c;           /* the panel's heading colour */
+  --s-muted: #a5a3ae;
+  --s-line: #eceaf0;
+  --s-bg: #f8f7fa;
   --s-card: #ffffff;
-  --s-danger: #e5484d;
-  --s-warn: #f5a524;
-  --s-shadow: 0 2px 10px rgba(23, 23, 40, 0.06);
+  --s-danger: #ea5455;
+  --s-warn: #ff9f43;
+  --s-success: #28c76f;
+  --s-shadow: 0 2px 6px 0 rgba(47, 43, 61, 0.1);
   --s-radius: 12px;
   --s-app-w: 500px;
-  --s-font: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  --s-font: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -109,15 +114,48 @@ body.seller {
 
 /* Banner */
 .s-banner {
+  position: relative;
   border-radius: 14px;
   overflow: hidden;
   background: #111;
   aspect-ratio: 16 / 9;
-  display: block;
   width: 100%;
   box-shadow: var(--s-shadow);
 }
-.s-banner svg { width: 100%; height: 100%; display: block; }
+/* every slide sits side by side on one rail that slides a whole width at a time */
+.s-banner-rail {
+  display: flex;
+  height: 100%;
+  transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.s-slide { flex: 0 0 100%; height: 100%; }
+.s-banner img,
+.s-banner svg { width: 100%; height: 100%; display: block; object-fit: cover; }
+
+.s-banner-dots {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+}
+.s-banner-dots button {
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  transition: width 0.25s ease, background 0.25s ease;
+}
+.s-banner-dots button.active { width: 18px; border-radius: 4px; background: #fff; }
+
+@media (prefers-reduced-motion: reduce) {
+  .s-banner-rail { transition: none; }
+}
 
 /* Quick actions */
 .s-quick {
@@ -145,8 +183,22 @@ body.seller {
   background: var(--s-teal);
   border-radius: 14px;
   padding: 12px;
-  display: grid;
-  gap: 10px;
+  /* a fixed window the ticker scrolls through */
+  height: 268px;
+  overflow: hidden;
+}
+/* two identical sets stacked: scrolling exactly one set's height puts the
+   duplicate where the first began, so the loop has no visible seam */
+.s-feed-track.running { animation: s-ticker linear infinite; }
+.s-feed-set { display: grid; gap: 10px; padding-bottom: 10px; }
+
+@keyframes s-ticker {
+  from { transform: translateY(0); }
+  to { transform: translateY(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .s-feed-track.running { animation: none; }
 }
 .s-feed-row {
   background: #fff;
@@ -455,7 +507,7 @@ body.seller {
   justify-content: center;
   gap: 2px;
   font-size: 13px;
-  box-shadow: 0 6px 16px rgba(22, 179, 174, 0.45);
+  box-shadow: 0 2px 6px 0 rgba(115, 103, 240, 0.48);
   text-decoration: none;
 }
 
@@ -563,7 +615,7 @@ body.seller {
   padding: 14px 16px;
   margin-bottom: 12px;
 }
-.s-vip-card.current { box-shadow: 0 0 0 2px rgba(22, 179, 174, 0.18); }
+.s-vip-card.current { box-shadow: 0 0 0 2px rgba(115, 103, 240, 0.18); }
 .s-vip-card .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .s-vip-card .tag { font-size: 12.5px; color: var(--s-muted); }
 .s-vip-card .tag.done { color: #14804a; }
@@ -1103,7 +1155,7 @@ body.seller {
   display: flex;
   align-items: center;
   gap: 14px;
-  background: linear-gradient(120deg, #2fc9bd, #14b1ae);
+  background: linear-gradient(120deg, #8f85f3, var(--s-teal));
   border-radius: 14px;
   color: #fff;
   padding: 22px 20px;
@@ -1141,13 +1193,13 @@ body.seller {
   height: 38px;
   flex: 0 0 38px;
   border-radius: 50%;
-  background: #d9f2f1;
-  color: #12a6a2;
+  background: var(--s-teal-soft);
+  color: var(--s-teal);
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.s-acc-row .av.team { background: #cfeeed; }
+.s-acc-row .av.team { background: #dcd8fb; }
 .s-acc-row .who { flex: 1; min-width: 0; }
 .s-acc-row .who small { display: block; font-size: 14px; color: #90909a; }
 .s-acc-row .who b { font-size: 16px; color: #2b2b31; word-break: break-all; }
@@ -1156,8 +1208,8 @@ body.seller {
 
 .s-divider { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 22px 0 4px; color: #7a7a84; font-size: 15px; }
 .s-divider::before,
-.s-divider::after { content: ''; height: 2px; width: 54px; border-radius: 2px; background: linear-gradient(90deg, rgba(22,179,174,0), #8ddedb); }
-.s-divider::after { background: linear-gradient(90deg, #8ddedb, rgba(22,179,174,0)); }
+.s-divider::after { content: ''; height: 2px; width: 54px; border-radius: 2px; background: linear-gradient(90deg, rgba(115,103,240,0), #b6aff7); }
+.s-divider::after { background: linear-gradient(90deg, #b6aff7, rgba(115,103,240,0)); }
 .s-divider-chip {
   width: 26px;
   height: 26px;

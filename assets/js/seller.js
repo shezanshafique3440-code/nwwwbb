@@ -7,7 +7,7 @@
   const svg = function (body, size, stroke) {
     return (
       '<svg xmlns="http://www.w3.org/2000/svg" width="' + (size || 24) + '" height="' + (size || 24) +
-      '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (stroke || 1.6) +
+      '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (stroke || 1.7) +
       '" stroke-linecap="round" stroke-linejoin="round">' + body + '</svg>'
     );
   };
@@ -96,6 +96,14 @@
         }
         return data;
       });
+    });
+  }
+
+  /* Both apps draw the same symbols, so where the panel already has one the
+     seller app uses its drawing — one icon set across the two sides. */
+  if (window.ICONS && window.ICONS.paths) {
+    Object.keys(I).forEach(function (name) {
+      if (window.ICONS.paths[name]) I[name] = window.ICONS.paths[name];
     });
   }
 
@@ -231,23 +239,29 @@
         ['Popular', 'products.html', 'popular']
       ];
 
+      const feedRow = function (f) {
+        return (
+          '<div class="s-feed-row"><span class="acc">@ ' + esc(f.account) + '</span>' +
+          '<span class="amt">+' + Math.round(f.amount) + '</span>' +
+          '<span class="date">' + dmy(f.date) + '</span></div>'
+        );
+      };
+      /* the ticker scrolls one full copy of the list, then the duplicate has
+         taken its place, so the loop never shows a seam */
+      const rows = data.feed.map(feedRow).join('');
+
       main.innerHTML =
-        '<div class="s-banner">' + banner() + '</div>' +
+        bannerRail() +
         '<div class="s-quick">' +
         quick.map(function (q) {
           return '<a href="' + q[1] + '">' + svg(I[q[2]], 42, 1.4) + '<span>' + q[0] + '</span></a>';
         }).join('') +
         '</div>' +
         '<h2 class="s-section-title">Withdrawal information</h2>' +
-        '<div class="s-feed">' +
-        data.feed.map(function (f) {
-          return (
-            '<div class="s-feed-row"><span class="acc">@ ' + esc(f.account) + '</span>' +
-            '<span class="amt">+' + Math.round(f.amount) + '</span>' +
-            '<span class="date">' + dmy(f.date) + '</span></div>'
-          );
-        }).join('') +
-        '</div>' +
+        '<div class="s-feed"><div class="s-feed-track" data-ticker>' +
+        '<div class="s-feed-set">' + rows + '</div>' +
+        '<div class="s-feed-set" aria-hidden="true">' + rows + '</div>' +
+        '</div></div>' +
         '<h2 class="s-title">Partner</h2>' +
         '<div class="s-partners">' +
         data.partners.map(function (p) {
@@ -257,35 +271,78 @@
           return '<div class="s-partner" style="' + style + '">' + esc(p.name) + '</div>';
         }).join('') +
         '</div>';
+
+      runBanner(main);
+      runTicker(main);
     });
   };
 
-  /* the hero image is drawn rather than loaded, so the app stays offline-safe */
-  function banner() {
+  /* The ticker runs on one CSS animation whose duration follows the row count,
+     so a long list scrolls at the same pace as a short one. */
+  function runTicker(host) {
+    const track = host.querySelector('[data-ticker]');
+    if (!track) return;
+    const rows = track.querySelectorAll('.s-feed-set:first-child .s-feed-row').length;
+    if (!rows) return;
+    track.style.animationDuration = rows * 2.2 + 's';
+    track.classList.add('running');
+  }
+
+  /* the promotion images the panel runs on its home screen */
+  const SLIDES = [
+    ['jewellery', 'Fine jewellery'],
+    ['fashion', 'Summer fashion'],
+    ['couple', 'City style'],
+    ['city', 'Rainy season picks'],
+    ['beauty', 'Beauty and care']
+  ];
+
+  function slide(i) {
+    /* the first one loads with the page, the rest arrive as they come round */
     return (
-      '<svg viewBox="0 0 480 270" preserveAspectRatio="xMidYMid slice" aria-label="Featured jewellery">' +
-      '<defs>' +
-      '<radialGradient id="bgGlow" cx="50%" cy="45%" r="65%">' +
-      '<stop offset="0%" stop-color="#3a3026"/><stop offset="100%" stop-color="#0c0b0a"/></radialGradient>' +
-      '<linearGradient id="band" x1="0" y1="0" x2="1" y2="1">' +
-      '<stop offset="0%" stop-color="#f4f4f6"/><stop offset="50%" stop-color="#9fa3ad"/>' +
-      '<stop offset="100%" stop-color="#e9e9ee"/></linearGradient>' +
-      '<linearGradient id="gem" x1="0" y1="0" x2="1" y2="1">' +
-      '<stop offset="0%" stop-color="#ffffff"/><stop offset="55%" stop-color="#cfe6f5"/>' +
-      '<stop offset="100%" stop-color="#8fb6d6"/></linearGradient>' +
-      '</defs>' +
-      '<rect width="480" height="270" fill="url(#bgGlow)"/>' +
-      '<circle cx="86" cy="70" r="26" fill="#c9922f" opacity=".28"/>' +
-      '<circle cx="404" cy="96" r="34" fill="#c9922f" opacity=".2"/>' +
-      '<circle cx="352" cy="34" r="16" fill="#e2b25c" opacity=".22"/>' +
-      '<ellipse cx="240" cy="238" rx="150" ry="16" fill="#000" opacity=".45"/>' +
-      '<ellipse cx="240" cy="176" rx="52" ry="54" fill="none" stroke="url(#band)" stroke-width="9"/>' +
-      '<path d="M240 84l30 26-30 34-30-34z" fill="url(#gem)"/>' +
-      '<path d="M210 110h60l-30 34z" fill="#ffffff" opacity=".55"/>' +
-      '<path d="M240 84l-14 26h28z" fill="#ffffff" opacity=".85"/>' +
-      '<circle cx="240" cy="96" r="3" fill="#fff"/>' +
-      '</svg>'
+      '<img src="../assets/img/ads/' + SLIDES[i][0] + '.jpg" alt="' + esc(SLIDES[i][1]) + '"' +
+      (i ? ' loading="lazy"' : '') + ' decoding="async">'
     );
+  }
+
+  /* the banner rail: every slide side by side, moved one width at a time */
+  function bannerRail() {
+    return (
+      '<div class="s-banner"><div class="s-banner-rail" data-rail>' +
+      SLIDES.map(function (_, i) { return '<div class="s-slide">' + slide(i) + '</div>'; }).join('') +
+      '</div>' +
+      '<div class="s-banner-dots" data-dots>' +
+      SLIDES.map(function (_, i) {
+        return '<button class="' + (i ? '' : 'active') + '" data-go="' + i + '" aria-label="Slide ' + (i + 1) + '"></button>';
+      }).join('') +
+      '</div></div>'
+    );
+  }
+
+  /* advance the rail on a timer, and let a tap on a dot jump straight there */
+  function runBanner(host) {
+    const rail = host.querySelector('[data-rail]');
+    const dots = host.querySelectorAll('[data-go]');
+    if (!rail) return;
+    let at = 0;
+    let timer = 0;
+
+    function show(i) {
+      at = (i + SLIDES.length) % SLIDES.length;
+      rail.style.transform = 'translateX(-' + at * 100 + '%)';
+      dots.forEach(function (d, k) { d.classList.toggle('active', k === at); });
+    }
+    function start() { stop(); timer = setInterval(function () { show(at + 1); }, 4000); }
+    function stop() { if (timer) clearInterval(timer); timer = 0; }
+
+    dots.forEach(function (d) {
+      d.addEventListener('click', function () { show(Number(d.getAttribute('data-go'))); start(); });
+    });
+    /* a hidden tab should not keep cycling */
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) stop(); else start();
+    });
+    start();
   }
 
   SCREENS.recharge = function (main) {
@@ -883,32 +940,98 @@
   SCREENS.wallet = function (main) {
     main.innerHTML = '<div class="s-loading">Loading…</div>';
     api('GET', '/seller/wallet').then(function (w) {
-      main.innerHTML =
-        '<p class="s-page-title">Your wallet information</p>' +
-        '<div class="s-input-group">' +
-        '<select class="s-input" id="method">' +
-        '<option value="">Select withdrawal method</option>' +
-        w.methods.map(function (m) {
-          return '<option' + (m === w.method ? ' selected' : '') + '>' + esc(m) + '</option>';
-        }).join('') +
-        '</select></div>' +
-        '<div class="s-input-group"><label class="s-req">Wallet Address</label>' +
-        '<input class="s-input" id="addr" value="' + esc(w.wallet) + '"></div>' +
-        '<div class="s-input-group"><span class="s-hint-label">Enter login password</span>' +
-        '<input class="s-input" id="pw" type="password"></div>' +
-        '<button class="s-btn s-big-btn" id="go">Confirm modification</button>';
+      /* a bank payout needs the card details, a crypto payout needs an
+         address — so the method decides which form comes next */
+      const isBank = function (m) { return /bank/i.test(m || ''); };
 
-      main.querySelector('#go').addEventListener('click', function (e) {
-        const btn = e.currentTarget;
-        btn.disabled = true;
-        api('PUT', '/seller/wallet', {
-          wallet: main.querySelector('#addr').value,
-          method: main.querySelector('#method').value,
-          password: main.querySelector('#pw').value
-        })
-          .then(function () { toast('Wallet saved'); btn.disabled = false; main.querySelector('#pw').value = ''; })
-          .catch(function (err) { toast(err.message); btn.disabled = false; });
-      });
+      function fields(m) {
+        if (!m) return '<p class="s-form-note" style="text-align:left">Choose how you want to be paid.</p>';
+        if (isBank(m)) {
+          return (
+            '<div class="s-input-group"><span class="s-hint-label">Bank name</span>' +
+            '<select class="s-input" id="bank">' +
+            w.banks.map(function (n) {
+              return '<option' + (n === w.bank ? ' selected' : '') + '>' + esc(n) + '</option>';
+            }).join('') +
+            '</select></div>' +
+            '<div class="s-input-group"><label class="s-req">Beneficiary Name</label>' +
+            '<input class="s-input" id="beneficiary" value="' + esc(w.beneficiary) + '"></div>' +
+            '<div class="s-input-group"><label class="s-req">Bank Account Number</label>' +
+            '<input class="s-input" id="account" inputmode="numeric" value="' + esc(w.account) + '"></div>' +
+            '<div class="s-input-group"><label class="s-req">IFSC</label>' +
+            '<input class="s-input" id="ifsc" value="' + esc(w.ifsc) + '"></div>'
+          );
+        }
+        return (
+          '<div class="s-input-group"><label class="s-req">Wallet Address</label>' +
+          '<input class="s-input" id="addr" value="' + esc(w.wallet) + '"></div>'
+        );
+      }
+
+      function draw(m) {
+        main.innerHTML =
+          '<p class="s-page-title">Your wallet information</p>' +
+          '<div class="s-input-group">' +
+          '<select class="s-input" id="method">' +
+          '<option value="">Select withdrawal method</option>' +
+          w.methods.map(function (x) {
+            return '<option' + (x === m ? ' selected' : '') + '>' + esc(x) + '</option>';
+          }).join('') +
+          '</select></div>' +
+          fields(m) +
+          '<div class="s-input-group"><span class="s-hint-label">Enter login password</span>' +
+          '<input class="s-input" id="pw" type="password"></div>' +
+          '<button class="s-btn s-big-btn" id="go"' + (m ? '' : ' disabled') + '>Confirm modification</button>' +
+          (isBank(m)
+            ? '<div class="s-form-card"><p class="s-form-note" style="margin:0">Do not enter the bank password, and do ' +
+              'not disclose your bank card information to others</p></div>'
+            : '');
+
+        main.querySelector('#method').addEventListener('change', function (e) {
+          draw(e.target.value);
+        });
+
+        main.querySelector('#go').addEventListener('click', function (e) {
+          const btn = e.currentTarget;
+          const password = main.querySelector('#pw').value;
+          btn.disabled = true;
+
+          const done = function (what) {
+            toast(what + ' saved');
+            btn.disabled = false;
+            main.querySelector('#pw').value = '';
+          };
+          const fail = function (err) { toast(err.message); btn.disabled = false; };
+
+          if (isBank(m)) {
+            api('PUT', '/seller/bank', {
+              bank: main.querySelector('#bank').value,
+              beneficiary: main.querySelector('#beneficiary').value,
+              account: main.querySelector('#account').value,
+              ifsc: main.querySelector('#ifsc').value,
+              password: password
+            }).then(function () {
+              w.bank = main.querySelector('#bank').value;
+              w.beneficiary = main.querySelector('#beneficiary').value;
+              w.account = main.querySelector('#account').value;
+              w.ifsc = main.querySelector('#ifsc').value;
+              done('Bank card');
+            }, fail);
+            return;
+          }
+
+          api('PUT', '/seller/wallet', {
+            wallet: main.querySelector('#addr').value,
+            method: m,
+            password: password
+          }).then(function () {
+            w.wallet = main.querySelector('#addr').value;
+            done('Wallet');
+          }, fail);
+        });
+      }
+
+      draw(w.method);
     });
   };
 
@@ -1138,8 +1261,9 @@
         if (tab === 'login') {
           api('POST', '/auth/login', { phone: phone, password: password })
             .then(function (r) {
-              if (r.user.role === 'Admin') throw new Error('This is an admin account — use the admin panel');
-              window.location.href = 'index.html';
+              /* an administrator is signed in either way — send them to their
+                 own side rather than turning them away */
+              window.location.href = r.user.role === 'Admin' ? '../index.html' : 'index.html';
             })
             .catch(function (e2) { fail(e2.message, btn, label); });
           return;
