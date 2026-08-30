@@ -183,11 +183,19 @@
     return (
       '<div class="sidebar-brand">' +
       '<a class="brand-link" href="index.html">' + LOGO +
-      '<span class="brand-text"><b>Club21</b><span>Mall</span></span></a>' +
+      '<span class="brand-text">Club Elite 21</span></a>' +
       '<button class="sidebar-toggle" id="sidebarToggle" title="Collapse menu">' + icon('circle', 20) + '</button>' +
       '</div>' +
       '<ul class="menu">' + items + '</ul>'
     );
+  }
+
+  /* the invite link the navbar shows is the very one it opens */
+  function inviteHref() {
+    return 'seller/login.html?tab=register&invite=' + encodeURIComponent(DB.admin.name);
+  }
+  function inviteUrl() {
+    return new URL(inviteHref(), window.location.href).href;
   }
 
   /* ---------------- navbar ---------------- */
@@ -195,8 +203,8 @@
     return (
       '<button class="nav-toggler" id="navToggler" aria-label="Menu">' + icon('menu', 24) + '</button>' +
       '<div class="invite-link">' +
-      '<a href="register.html?inviter=' + encodeURIComponent(DB.admin.name) + '" id="inviteLink"' +
-      ' title="' + DB.referralLink + '">' + DB.referralLink + '</a>' +
+      '<a href="' + inviteHref() + '" id="inviteLink"' +
+      ' title="' + inviteUrl() + '">' + inviteUrl() + '</a>' +
       '<button class="copy-btn" id="copyLink" title="Copy invite link">' + icon('copy', 18) + '</button>' +
       '</div>' +
       '<div class="nav-right">' +
@@ -314,7 +322,7 @@
     const copyBtn = document.getElementById('copyLink');
     if (copyBtn) {
       copyBtn.addEventListener('click', function () {
-        const text = DB.referralLink;
+        const text = inviteUrl();
         const done = function () { U.toast('Invite link copied!'); };
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text, done); });
@@ -356,7 +364,7 @@
           U.detailRows([
             ['Account', DB.admin.email],
             ['Role', DB.admin.role],
-            ['Invite link', DB.referralLink],
+            ['Invite link', inviteUrl()],
             ['Theme', document.documentElement.getAttribute('data-theme') === 'dark' ? 'Dark' : 'Light']
           ]) +
             '<p style="margin:16px 0 0;font-size:13.5px;color:var(--muted)">' +

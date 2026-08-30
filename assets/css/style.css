@@ -1,11 +1,11 @@
 /* =========================================================
-   Club21 Mall — Admin Dashboard
+   Club Elite 21 — Admin Dashboard
    Theme styles (light + dark)
    ========================================================= */
 
 :root {
-  --primary: #7367f0;
-  --primary-soft: rgba(115, 103, 240, 0.16);
+  --primary: #16b3ae;
+  --primary-soft: rgba(22, 179, 174, 0.16);
   --success: #28c76f;
   --success-soft: rgba(40, 199, 111, 0.16);
   --warning: #ff9f43;
@@ -27,7 +27,7 @@
 
   --shadow-sm: 0 2px 6px 0 rgba(47, 43, 61, 0.1);
   --shadow-md: 0 4px 18px 0 rgba(47, 43, 61, 0.1);
-  --shadow-primary: 0 2px 6px 0 rgba(115, 103, 240, 0.48);
+  --shadow-primary: 0 2px 6px 0 rgba(22, 179, 174, 0.48);
 
   --radius: 6px;
   --radius-lg: 10px;
@@ -67,7 +67,7 @@ body {
 }
 
 a { color: var(--primary); text-decoration: none; }
-a:hover { color: #5e50ee; }
+a:hover { color: #0f9c97; }
 
 svg { flex-shrink: 0; }
 
@@ -130,14 +130,17 @@ body.sidebar-collapsed .sidebar { width: var(--sidebar-w-collapsed); }
 
 .brand-link { display: flex; align-items: center; gap: 8px; overflow: hidden; }
 .brand-logo { width: 46px; height: 46px; flex: 0 0 auto; }
-.brand-text { display: flex; flex-direction: column; line-height: 1; }
-.brand-text b {
+/* one golden "Club Elite 21", the same wordmark the seller app carries */
+.brand-text {
   font-size: 20px;
   font-weight: 800;
-  color: #2f6fd0;
   letter-spacing: -0.2px;
+  line-height: 1.15;
+  background: linear-gradient(180deg, #e9c159 0%, #b07d12 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
-.brand-text span { font-size: 20px; font-weight: 800; color: #f0a500; letter-spacing: -0.2px; }
 
 .sidebar-toggle {
   border: 0;
@@ -187,7 +190,7 @@ body.sidebar-collapsed .sidebar { width: var(--sidebar-w-collapsed); }
 .menu-link:hover { background: var(--hover); color: var(--text); }
 
 .menu-item.active > .menu-link {
-  background: linear-gradient(72.47deg, var(--primary) 22.16%, rgba(115, 103, 240, 0.7) 76.47%);
+  background: linear-gradient(72.47deg, var(--primary) 22.16%, rgba(22, 179, 174, 0.7) 76.47%);
   color: #fff;
   box-shadow: var(--shadow-primary);
 }
@@ -221,7 +224,7 @@ body.sidebar-collapsed .sidebar { width: var(--sidebar-w-collapsed); }
 .submenu .menu-link { padding: 8px 12px; font-size: 14.5px; }
 .submenu .menu-item { margin: 0 0 2px; }
 .submenu .menu-item.active > .menu-link {
-  background: linear-gradient(72.47deg, var(--primary) 22.16%, rgba(115, 103, 240, 0.7) 76.47%);
+  background: linear-gradient(72.47deg, var(--primary) 22.16%, rgba(22, 179, 174, 0.7) 76.47%);
   color: #fff;
   box-shadow: var(--shadow-primary);
 }
@@ -235,7 +238,7 @@ body.sidebar-collapsed .sidebar { width: var(--sidebar-w-collapsed); }
   margin-left: 4px;
 }
 .menu-item.open > .menu-link { background: var(--hover); }
-.menu-item.open.active > .menu-link { background: linear-gradient(72.47deg, var(--primary) 22.16%, rgba(115, 103, 240, 0.7) 76.47%); }
+.menu-item.open.active > .menu-link { background: linear-gradient(72.47deg, var(--primary) 22.16%, rgba(22, 179, 174, 0.7) 76.47%); }
 .submenu .menu-item.active > .menu-link .sub-dot { opacity: 1; }
 
 /* Collapsed sidebar — desktop only; on small screens the sidebar
@@ -438,11 +441,11 @@ body.sidebar-open .sidebar-backdrop { display: block; }
 .alert .alert-link { font-weight: 500; white-space: nowrap; }
 .alert-info { background: #d7f5f9; color: #00b4cc; }
 .alert-info .alert-link { color: #00b4cc; }
-.alert-primary { background: #e5e2fd; color: var(--primary); }
+.alert-primary { background: #e6f7f6; color: var(--primary); }
 .alert-primary .alert-link { color: var(--primary); }
 html[data-theme="dark"] .alert-info { background: rgba(0, 207, 232, 0.16); color: #4bdbef; }
 html[data-theme="dark"] .alert-info .alert-link { color: #4bdbef; }
-html[data-theme="dark"] .alert-primary { background: rgba(115, 103, 240, 0.2); color: #9d95f5; }
+html[data-theme="dark"] .alert-primary { background: rgba(22, 179, 174, 0.2); color: #6fdcd8; }
 html[data-theme="dark"] .alert-primary .alert-link { color: #9d95f5; }
 
 /* ---------------------------------------------------------
@@ -470,7 +473,7 @@ html[data-theme="dark"] .alert-primary .alert-link { color: #9d95f5; }
 .stat-card .stat-label { font-size: 16px; font-weight: 500; opacity: 0.95; margin-bottom: 12px; }
 .stat-card .stat-value { font-size: 30px; font-weight: 600; line-height: 1.1; }
 .stat-card .stat-icon { opacity: 0.55; }
-.stat-purple { background: linear-gradient(118deg, #7367f0 0%, #9e95f5 100%); }
+.stat-purple { background: linear-gradient(118deg, #16b3ae 0%, #5fd3cf 100%); }
 .stat-green { background: linear-gradient(118deg, #28c76f 0%, #55d98d 100%); }
 .stat-orange { background: linear-gradient(118deg, #ff9f43 0%, #ffbe7d 100%); }
 .stat-gray { background: linear-gradient(118deg, #6f6b7d 0%, #a8aaae 100%); }
@@ -506,7 +509,7 @@ html[data-theme="dark"] .alert-primary .alert-link { color: #9d95f5; }
 }
 .form-input::placeholder { color: var(--muted); }
 .form-select:focus,
-.form-input:focus { border-color: var(--primary); box-shadow: 0 2px 6px rgba(115, 103, 240, 0.24); }
+.form-input:focus { border-color: var(--primary); box-shadow: 0 2px 6px rgba(22, 179, 174, 0.24); }
 .form-select {
   appearance: none;
   padding-right: 30px;
@@ -1105,7 +1108,7 @@ html[data-theme="dark"] .mini-stat.tone-orange { background: rgba(255, 159, 67, 
 }
 .profile-cover .banner {
   height: 190px;
-  background: linear-gradient(115deg, #c86dd7 0%, #ef5da8 28%, #7367f0 62%, #3fc7fa 100%);
+  background: linear-gradient(115deg, #0e8f8b 0%, #16b3ae 34%, #3fc7c2 66%, #8fe3e0 100%);
 }
 .profile-cover .who {
   display: flex;

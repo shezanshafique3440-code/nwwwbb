@@ -67,7 +67,7 @@
       const padB = 34;
       const grid = cssVar('--border-soft', '#eceaf0');
       const muted = cssVar('--muted', '#a5a3ae');
-      const color = data.color || cssVar('--primary', '#7367f0');
+      const color = data.color || cssVar('--primary', '#16b3ae');
 
       const max = niceMax(Math.max.apply(null, data.values.concat([1])));
       const ticks = 6;

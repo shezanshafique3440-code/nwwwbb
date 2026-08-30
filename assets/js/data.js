@@ -1,5 +1,5 @@
 /* =========================================================
-   Demo data source for the Club21 Mall dashboard.
+   Demo data source for the Club Elite 21 dashboard.
    Everything the UI renders comes from this single object,
    so swapping in a real API later only touches this file.
    ========================================================= */
@@ -417,7 +417,7 @@ window.DB = (function () {
   ];
 
   /* =======================================================
-     Seller side — the Club21 Mall mobile app
+     Seller side — the Club Elite 21 mobile app
      ======================================================= */
 
   /* Catalogue the sellers grab their orders from */
@@ -623,7 +623,6 @@ window.DB = (function () {
   const rechargePresets = [100, 200, 500, 1000, 2000, 3000, 5000, 8000];
 
   const db = {
-    referralLink: 'https://club21mall.com/register?inviter=admin',
     admin: { name: 'admin', email: 'admin@club21mall.com', role: 'Administrator' },
 
     orders: orders,
@@ -656,7 +655,7 @@ window.DB = (function () {
     },
 
     seller: {
-      appName: 'Club21 Mall',
+      appName: 'Club Elite 21',
       /* the support card on the MALL screen */
       service: { title: 'Online Customer Service', hours: '10:00-22:00', badge: 'MAS | MONETARY AUTHORITY OF SINGAPORE' },
       /* the small print under the recharge methods */

@@ -1,5 +1,5 @@
 /* =========================================================
-   Club21 Mall backend — Node's built-in http + node:sqlite,
+   Club Elite 21 backend — Node's built-in http + node:sqlite,
    no npm dependencies.
 
      node server/index.js        (or: npm start)
@@ -438,6 +438,13 @@ async function api(req, res, url) {
         db.prepare('UPDATE users SET referrals = referrals + 1 WHERE id = ?').run(inviter.id);
       }
       const newId = Number(info.lastInsertRowid);
+
+      /* every account gets its own invite code, so the one on the My screen is
+         real from the first visit and differs for each new member */
+      let code = store.inviteCode();
+      while (q.userByInvite.get(code)) code = store.inviteCode();
+      db.prepare('UPDATE users SET invite_code = ? WHERE id = ?').run(code, newId);
+
       if (phone) {
         /* someone signing up in the seller app arrives as a seller */
         db.prepare("UPDATE users SET phone = ?, role = 'Seller', username = ? WHERE id = ?").run(phone, phone, newId);
@@ -1040,7 +1047,7 @@ function teamOf(seller) {
   });
 
   return {
-    link: 'https://club21mall.com/register?inviter=' + encodeURIComponent(seller.invite_code || seller.name),
+    link: '/seller/login.html?tab=register&invite=' + encodeURIComponent(seller.invite_code || seller.name),
     inviteCode: seller.invite_code || seller.name,
     rates: TEAM_RATES,
     totals: {
@@ -1581,7 +1588,7 @@ const server = http.createServer(function (req, res) {
 
 if (require.main === module) {
   server.listen(PORT, function () {
-    console.log('Club21 Mall running on http://localhost:' + PORT);
+    console.log('Club Elite 21 running on http://localhost:' + PORT);
     console.log('Sign in with admin@club21mall.com / password');
   });
 }

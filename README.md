@@ -1,10 +1,10 @@
-# Club21 Mall — Admin Dashboard
+# Club Elite 21 — Admin Dashboard
 
 Two apps on one backend:
 
-- **Club21 Mall admin panel** — dashboard analytics, orders, withdraw / recharge
+- **Club Elite 21 admin panel** — dashboard analytics, orders, withdraw / recharge
   requests, products and user management.
-- **Club21 Mall seller app** — the phone-sized app sellers sign in to: grab
+- **Club Elite 21 seller app** — the phone-sized app sellers sign in to: grab
   order tasks, submit them for commission, invite a team, climb the VIP tiers,
   recharge and withdraw.
 
@@ -51,7 +51,7 @@ disk to browse the same panel against seed data held in the browser.
 | File | Screen |
 | --- | --- |
 | `seller/welcome.html` | The shop window a visitor sees before signing in |
-| `seller/login.html` | Sign in or register with a mobile number |
+| `seller/login.html` | Sign in, or sign up with a name, mobile number and invitation code |
 | `seller/mall.html` | MALL — online customer service hours |
 | `seller/index.html` | Home — rolling banner, quick actions, a withdrawal ticker that keeps scrolling, partners |
 | `seller/recharge.html` | Recharge amount, presets and payment method |
@@ -104,9 +104,9 @@ disk to browse the same panel against seed data held in the browser.
   ticker that scrolls without stopping — two copies of the list, so the loop
   has no seam. Both stand still when the tab is hidden or the reader asks for
   reduced motion.
-- One look across both sides: the seller app is painted in the panel's palette
-  and draws every symbol the panel already has from the same icon set, so the
-  two apps read as one product.
+- The seller app is **Club Elite 21** — the wordmark in gold on the teal theme
+  its screens are built around — and draws every symbol the panel already has
+  from the same icon set.
 - **The gap.** Whenever a seller's balance falls short — grabbing a task,
   submitting a frozen one, or trying to grab past it — the app answers with the
   same three numbers: what they hold, what the order needs, and the difference
@@ -138,8 +138,9 @@ account's role decides which side opens.
 | Administrator | `admin@club21mall.com` / `password` | the panel |
 | Seller | mobile `0000000080` / `password` | the seller app |
 
-Signing up on that page creates a **seller**, which is why it asks for a mobile
-number, and drops the new account straight into the seller app.
+**Create an account** on that page opens the seller sign-up, which asks for a
+name, a mobile number and an invitation code, and drops the new member straight
+into the seller app with an invite code of their own.
 
 Each side keeps its own screen as well — `/seller/login.html` is the phone-shaped
 one — and both accept either role, sending each account where it belongs. A
@@ -294,7 +295,7 @@ assets/
   js/auth.js        login / register screens
   js/store.js       API client with an offline fallback
   js/seller.js      the seller app: shell, screens and its API calls
-  css/seller.css    seller app styles (mobile, same palette as the panel)
+  css/seller.css    seller app styles (mobile, teal + gold)
   img/favicon.svg   brand mark
   img/ads/          the promotion images the seller home rolls through
 seller/             the seller app's 25 pages, one file per screen

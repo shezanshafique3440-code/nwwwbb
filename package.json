@@ -1,7 +1,7 @@
 {
-  "name": "club21mall",
+  "name": "club-elite-21",
   "version": "1.0.0",
-  "description": "Club21 Mall admin panel — static frontend with a Node + SQLite backend",
+  "description": "Club Elite 21 admin panel — static frontend with a Node + SQLite backend",
   "private": true,
   "scripts": {
     "start": "node server/index.js",

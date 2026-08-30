@@ -1,26 +1,25 @@
 /* =========================================================
-   Club21 Mall — seller mobile app
-   Phone-width layout in the panel's palette, bottom tab bar.
+   Club Elite 21 — seller mobile app
+   Phone-width layout, teal + gold, bottom tab bar.
    ========================================================= */
 
-/* The seller app wears the panel's colours. The --s-* names are kept because
-   the whole stylesheet is written against them; each one now points at the
-   value the admin side uses, so the two apps read as one product. */
+/* The teal and gold the panel screenshots use: teal for every action and
+   surface, gold for the Club Elite 21 wordmark. */
 :root {
-  --s-teal: #7367f0;          /* the panel's primary */
-  --s-teal-dark: #5e50ee;
-  --s-teal-soft: #e5e2fd;
-  --s-gold-1: #b07d12;        /* the brand mark keeps its gold */
+  --s-teal: #16b3ae;
+  --s-teal-dark: #0f9c97;
+  --s-teal-soft: #e6f7f6;
+  --s-gold-1: #b07d12;
   --s-gold-2: #e9c159;
-  --s-ink: #5d596c;           /* the panel's heading colour */
-  --s-muted: #a5a3ae;
-  --s-line: #eceaf0;
-  --s-bg: #f8f7fa;
+  --s-ink: #333333;
+  --s-muted: #9a9aa2;
+  --s-line: #ececf1;
+  --s-bg: #f7f7f9;
   --s-card: #ffffff;
-  --s-danger: #ea5455;
-  --s-warn: #ff9f43;
-  --s-success: #28c76f;
-  --s-shadow: 0 2px 6px 0 rgba(47, 43, 61, 0.1);
+  --s-danger: #e5484d;
+  --s-warn: #f5a524;
+  --s-success: #14804a;
+  --s-shadow: 0 2px 10px rgba(23, 23, 40, 0.06);
   --s-radius: 12px;
   --s-app-w: 500px;
   --s-font: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -507,7 +506,7 @@ body.seller {
   justify-content: center;
   gap: 2px;
   font-size: 13px;
-  box-shadow: 0 2px 6px 0 rgba(115, 103, 240, 0.48);
+  box-shadow: 0 6px 16px rgba(22, 179, 174, 0.45);
   text-decoration: none;
 }
 
@@ -574,11 +573,9 @@ body.seller {
 .s-loading { text-align: center; color: var(--s-muted); padding: 40px 0; font-size: 14.5px; }
 
 /* ---------------------------------------------------------
-   Brand wordmark (matches the admin panel)
+   Brand wordmark — one golden "Club Elite 21"
    --------------------------------------------------------- */
-.s-brand span { display: inline-flex; gap: 6px; align-items: baseline; }
-.s-brand span b { color: #2f6fd0; font-weight: 800; font-size: 22px; background: none; }
-.s-brand span i { color: #f0a500; font-weight: 800; font-size: 22px; font-style: normal; }
+.s-brand svg { color: var(--s-gold-1); }
 
 /* ---------------------------------------------------------
    VIP
@@ -615,7 +612,7 @@ body.seller {
   padding: 14px 16px;
   margin-bottom: 12px;
 }
-.s-vip-card.current { box-shadow: 0 0 0 2px rgba(115, 103, 240, 0.18); }
+.s-vip-card.current { box-shadow: 0 0 0 2px rgba(22, 179, 174, 0.18); }
 .s-vip-card .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .s-vip-card .tag { font-size: 12.5px; color: var(--s-muted); }
 .s-vip-card .tag.done { color: #14804a; }
@@ -1155,7 +1152,7 @@ body.seller {
   display: flex;
   align-items: center;
   gap: 14px;
-  background: linear-gradient(120deg, #8f85f3, var(--s-teal));
+  background: linear-gradient(120deg, #2fc9bd, #14b1ae);
   border-radius: 14px;
   color: #fff;
   padding: 22px 20px;
@@ -1199,7 +1196,7 @@ body.seller {
   align-items: center;
   justify-content: center;
 }
-.s-acc-row .av.team { background: #dcd8fb; }
+.s-acc-row .av.team { background: #cfeeed; }
 .s-acc-row .who { flex: 1; min-width: 0; }
 .s-acc-row .who small { display: block; font-size: 14px; color: #90909a; }
 .s-acc-row .who b { font-size: 16px; color: #2b2b31; word-break: break-all; }
@@ -1208,8 +1205,8 @@ body.seller {
 
 .s-divider { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 22px 0 4px; color: #7a7a84; font-size: 15px; }
 .s-divider::before,
-.s-divider::after { content: ''; height: 2px; width: 54px; border-radius: 2px; background: linear-gradient(90deg, rgba(115,103,240,0), #b6aff7); }
-.s-divider::after { background: linear-gradient(90deg, #b6aff7, rgba(115,103,240,0)); }
+.s-divider::after { content: ''; height: 2px; width: 54px; border-radius: 2px; background: linear-gradient(90deg, rgba(22,179,174,0), #8ddedb); }
+.s-divider::after { background: linear-gradient(90deg, #8ddedb, rgba(22,179,174,0)); }
 .s-divider-chip {
   width: 26px;
   height: 26px;
@@ -1369,3 +1366,6 @@ body.seller {
 .s-wallet-gap .k { font-size: 13px; opacity: 0.85; }
 .s-wallet-gap .v { float: right; font-size: 17px; font-weight: 700; }
 .s-wallet-gap .sub { display: block; clear: both; font-size: 12.5px; opacity: 0.8; padding-top: 2px; }
+
+/* the invite code reads as the value it is, not as a label */
+.s-invite-code { font-weight: 700; letter-spacing: 0.5px; color: var(--s-ink); }

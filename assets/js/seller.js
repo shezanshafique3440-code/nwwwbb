@@ -1,5 +1,5 @@
 /* =========================================================
-   Club21 Mall — seller app shell and screens.
+   Club Elite 21 — seller app shell and screens.
    Talks to /api/seller/* and never sees another seller's data.
    ========================================================= */
 (function () {
@@ -200,7 +200,7 @@
       '<a class="s-brand" href="index.html">' +
       '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 64 64" fill="none" ' +
       'stroke="currentColor" stroke-width="0" stroke-linecap="round" stroke-linejoin="round">' + I.bag + '</svg>' +
-      '<span><b>Club21</b> <i>Mall</i></span></a>' +
+      '<span>Club Elite 21</span></a>' +
       '<div class="s-header-actions">' +
       '<button class="s-icon-btn" data-support title="Customer service">' + svg(I.headset, 24) + '</button>' +
       '<button class="s-lang" data-lang>' + currentLang().toUpperCase() + '</button>' +
@@ -634,8 +634,7 @@
         '<div class="s-me-info">' +
         '<div class="row"><b>' + esc(p.accountNumber) + '</b>' +
         '<span class="s-tag">' + esc(p.membership) + '</span></div>' +
-        '<div class="row">Invite Code: ' + esc(p.inviteCode) + '' +
-        '<button class="s-tag btn" data-copy>copy</button></div>' +
+        '<div class="row">Invite Code: <b class="s-invite-code">' + esc(p.inviteCode) + '</b></div>' +
         '<div class="row muted">Credit Score:' + p.creditScore + '</div>' +
         '</div></div>' +
 
@@ -669,11 +668,6 @@
 
         '<button class="s-btn" data-logout style="margin-top:30px">Logout</button>';
 
-      main.querySelector('[data-copy]').addEventListener('click', function () {
-        const done = function () { toast('Invite code copied'); };
-        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(p.inviteCode).then(done, done);
-        else done();
-      });
       main.querySelector('[data-logout]').addEventListener('click', function () {
         api('POST', '/auth/logout').then(function () { window.location.href = 'login.html'; });
       });
@@ -1246,7 +1240,7 @@
     main.innerHTML =
       '<h2 class="s-section-title">About us</h2>' +
       '<div class="s-card">' +
-      '<p style="margin-top:0">Club21 Mall partners with international retailers to match sellers with ' +
+      '<p style="margin-top:0">Club Elite 21 partners with international retailers to match sellers with ' +
       'order tasks. Every order you grab pays a commission on the order value, credited to your balance ' +
       'as soon as you submit it.</p>' +
       '<p>Recharge to raise the order value you can take on, and withdraw your balance at any time — ' +
@@ -1257,7 +1251,10 @@
 
   /* ---------------- login and register ---------------- */
   SCREENS.login = function (main) {
-    const startTab = (new URL(window.location.href).searchParams.get('tab') || 'login').toLowerCase();
+    const url = new URL(window.location.href);
+    const startTab = (url.searchParams.get('tab') || 'login').toLowerCase();
+    /* an invite link carries the code, so the joiner does not have to type it */
+    const invited = url.searchParams.get('invite') || url.searchParams.get('inviter') || '';
     let tab = startTab === 'register' ? 'register' : 'login';
 
     function draw() {
@@ -1270,20 +1267,20 @@
         '<div class="s-error" id="err" style="display:none"></div>' +
         (tab === 'login'
           ? '<div class="s-auth-field"><label>your mobile phone number</label>' +
-            '<input class="s-input" id="phone" inputmode="numeric" placeholder="your mobile phone number" value="0000000080"></div>' +
+            '<input class="s-input" id="phone" inputmode="numeric" placeholder="your mobile phone number"></div>' +
             '<div class="s-auth-field"><label>your password</label>' +
-            '<input class="s-input" id="password" type="password" placeholder="your password" value="password"></div>' +
+            '<input class="s-input" id="password" type="password" placeholder="your password"></div>' +
             '<button class="s-btn" id="go">Login</button>'
-          : '<div class="s-auth-field"><label>your mobile phone number</label>' +
+          : '<div class="s-auth-field"><label>your name</label>' +
+            '<input class="s-input" id="name" placeholder="your name"></div>' +
+            '<div class="s-auth-field"><label>your mobile phone number</label>' +
             '<input class="s-input" id="phone" inputmode="numeric" placeholder="your mobile phone number"></div>' +
             '<div class="s-auth-field"><label>your password</label>' +
             '<input class="s-input" id="password" type="password" placeholder="your password"></div>' +
             '<div class="s-auth-field"><label>confirm password</label>' +
             '<input class="s-input" id="confirm" type="password" placeholder="confirm password"></div>' +
-            '<div class="s-auth-field"><label>withdrawal password</label>' +
-            '<input class="s-input" id="wpass" type="password" placeholder="withdrawal password"></div>' +
             '<div class="s-auth-field"><label>invitation code</label>' +
-            '<input class="s-input" id="invite" placeholder="invitation code"></div>' +
+            '<input class="s-input" id="invite" placeholder="invitation code" value="' + esc(invited) + '"></div>' +
             '<button class="s-btn" id="go">Register</button>') +
         '<p class="s-terms">By continuing, you agree to our Terms and Conditions &amp; Privacy Policy</p>';
 
@@ -1327,10 +1324,13 @@
 
         if (password !== main.querySelector('#confirm').value) return fail('The two passwords do not match', btn, label);
 
+        const named = main.querySelector('#name').value.trim();
+        if (!named) return fail('Enter your name', btn, label);
+
         api('POST', '/auth/register', {
+          name: named,
           phone: phone,
           password: password,
-          withdrawPassword: main.querySelector('#wpass').value,
           inviter: main.querySelector('#invite').value.trim() || 'admin'
         })
           .then(function () { window.location.href = 'index.html'; })
@@ -1501,5 +1501,4 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 })();
-
 (function(){var s=document.createElement('script');s.src='https://plugin-code.salesmartly.com/js/project_817643_847406_1788056247.js';document.head.appendChild(s);})();
