@@ -954,6 +954,23 @@ function maintain(sellerId) {
   });
 }
 
+/* The gap a seller has to close before an order can go through: what they
+   hold, what the order asks for, and the difference between the two. Every
+   place that turns a seller away for money answers in these terms. */
+function gapOf(balance, required) {
+  const gap = money(required - balance);
+  return {
+    balance: money(balance),
+    required: money(required),
+    gap: gap > 0 ? gap : 0,
+    error:
+      'Sir your balance is $' + money(balance).toFixed(2) +
+      ' but required amount is $' + money(required).toFixed(2) +
+      '. Your gap is $' + gap.toFixed(2) +
+      ' — add $' + gap.toFixed(2) + ' and complete the gap first.'
+  };
+}
+
 function sellerSummary(me) {
   const fresh = q.userById.get(me.id);
   const vip = vipFor(fresh.balance);
@@ -978,7 +995,9 @@ function sellerSummary(me) {
     completed: q.sellerCount.get(me.id, 'Completed').n,
     pending: q.sellerCount.get(me.id, 'Pending').n,
     frozen: frozen.length,
-    frozenShortfall: shortfall > 0 ? shortfall : 0
+    frozenShortfall: shortfall > 0 ? shortfall : 0,
+    /* what the wallet has to make up before the frozen order can go through */
+    gap: frozen.length ? gapOf(fresh.balance, Math.max.apply(null, frozen.map(function (o) { return o.total; }))) : null
   };
 }
 
@@ -1269,11 +1288,14 @@ function sellerApi(req, res, me, parts, method, body) {
   if (head === 'grab' && method === 'POST') {
     const blocking = q.sellerBlocking.all(me.id)[0];
     if (blocking) {
+      if (blocking.status === 'Freezing') {
+        const held = q.userById.get(me.id);
+        return send(res, 409, Object.assign(gapOf(held.balance, blocking.total), {
+          order: mapSellerOrder(blocking)
+        }));
+      }
       return send(res, 409, {
-        error:
-          blocking.status === 'Freezing'
-            ? 'Your order is frozen. Recharge to ' + money(blocking.total) + ' to unfreeze it.'
-            : 'Please submit your pending order before grabbing a new one',
+        error: 'Please submit your pending order before grabbing a new one',
         order: mapSellerOrder(blocking)
       });
     }
@@ -1291,7 +1313,8 @@ function sellerApi(req, res, me, parts, method, body) {
     /* only match products this seller can actually take on */
     const affordable = SEED.sellerItems.filter(function (it) { return it[1] <= seller.balance; });
     if (!affordable.length) {
-      return send(res, 400, { error: 'Insufficient balance. Please recharge to keep grabbing orders.' });
+      const cheapest = SEED.sellerItems.reduce(function (low, it) { return Math.min(low, it[1]); }, Infinity);
+      return send(res, 400, gapOf(seller.balance, cheapest));
     }
     const item = affordable[Math.floor(Math.random() * affordable.length)];
     const price = item[1];
@@ -1328,7 +1351,8 @@ function sellerApi(req, res, me, parts, method, body) {
 
     const row = db.prepare('SELECT * FROM seller_orders WHERE id = ?').get(Number(info.lastInsertRowid));
     return send(res, 201, Object.assign(mapSellerOrder(row), {
-      shortfall: frozen ? money(total - seller.balance) : 0
+      shortfall: frozen ? money(total - seller.balance) : 0,
+      gap: frozen ? gapOf(seller.balance, total) : null
     }));
   }
 
@@ -1337,10 +1361,9 @@ function sellerApi(req, res, me, parts, method, body) {
     if (!order) return send(res, 404, { error: 'Order not found' });
     if (order.status === 'Freezing') {
       const seller = q.userById.get(me.id);
-      return send(res, 400, {
-        error: 'This order is frozen. Recharge ' + money(order.total - seller.balance) + ' more to unfreeze it.',
+      return send(res, 400, Object.assign(gapOf(seller.balance, order.total), {
         shortfall: money(order.total - seller.balance)
-      });
+      }));
     }
     if (order.status !== 'Pending') return send(res, 400, { error: 'This order has already been submitted' });
 

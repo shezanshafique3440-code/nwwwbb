@@ -107,6 +107,11 @@ disk to browse the same panel against seed data held in the browser.
 - One look across both sides: the seller app is painted in the panel's palette
   and draws every symbol the panel already has from the same icon set, so the
   two apps read as one product.
+- **The gap.** Whenever a seller's balance falls short — grabbing a task,
+  submitting a frozen one, or trying to grab past it — the app answers with the
+  same three numbers: what they hold, what the order needs, and the difference
+  between them. It arrives as a dialog with a way straight to Recharge, and the
+  wallet card carries the same figure until it is closed.
 - Responsive down to phone widths: the sidebar becomes an off-canvas drawer,
   the datatable chrome stacks, tables scroll sideways with their action column
   pinned to the right edge, forms and dialogs go to one column, and icon-only

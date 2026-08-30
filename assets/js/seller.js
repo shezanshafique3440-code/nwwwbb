@@ -135,6 +135,45 @@
     setTimeout(function () { el.remove(); }, 2800);
   }
 
+  /* The gap dialog. Whenever the balance falls short the seller is told the
+     three numbers that matter — what they hold, what the order needs, and the
+     difference — with a way straight to the recharge screen. */
+  function gapDialog(g) {
+    document.querySelectorAll('.s-modal').forEach(function (m) { m.remove(); });
+
+    const wrap = document.createElement('div');
+    wrap.className = 's-modal';
+    wrap.innerHTML =
+      '<div class="s-modal-card" role="alertdialog" aria-labelledby="gapTitle">' +
+      '<h3 id="gapTitle">Insufficient Funds</h3>' +
+      '<p class="line">Sir your balance is <b>$' + money(g.balance) + '</b> but required amount is ' +
+      '<b>$' + money(g.required) + '</b></p>' +
+      '<div class="s-gap-figure"><span class="k">Your gap</span>' +
+      '<span class="v">$' + money(g.gap) + '</span></div>' +
+      '<p class="line">Add <b>$' + money(g.gap) + '</b> and complete the gap first.</p>' +
+      '<a class="s-btn s-modal-go" href="recharge.html">Recharge now</a>' +
+      '<button class="s-modal-close" type="button">Close</button>' +
+      '</div>';
+    document.body.appendChild(wrap);
+
+    const shut = function () { wrap.remove(); };
+    wrap.querySelector('.s-modal-close').addEventListener('click', shut);
+    wrap.addEventListener('click', function (e) { if (e.target === wrap) shut(); });
+    document.addEventListener('keydown', function esc(e) {
+      if (e.key === 'Escape') { shut(); document.removeEventListener('keydown', esc); }
+    });
+    return wrap;
+  }
+
+  /* an error carrying a gap gets the dialog; anything else is just a toast */
+  function reportGap(err) {
+    const d = err && err.data;
+    if (d && typeof d.gap === 'number' && d.gap > 0) return gapDialog(d);
+    if (d && d.gap && typeof d.gap.gap === 'number' && d.gap.gap > 0) return gapDialog(d.gap);
+    toast(err.message);
+    return null;
+  }
+
   /* ---------------- shell ---------------- */
   const TABS = [
     { key: 'home', label: 'Home page', href: 'index.html', icon: 'home' },
@@ -426,10 +465,11 @@
         '<span class="s-vip-meta">' + s.level.rate + '% commission &middot; ' +
         s.dailyUsed + '/' + s.dailyLimit + ' orders today</span>' +
         '<span class="chev">' + svg(I.chevron, 18) + '</span></a>' +
-        (s.frozen
-          ? '<div class="s-frozen-note">' + s.frozen + ' order is frozen. Recharge ' +
-            money(s.frozenShortfall) + ' more to unfreeze it. ' +
-            '<a href="recharge.html">Recharge now</a></div>'
+        (s.frozen && s.gap
+          ? '<div class="s-frozen-note">Sir your balance is <b>$' + money(s.gap.balance) +
+            '</b> but required amount is <b>$' + money(s.gap.required) + '</b>. ' +
+            'Your gap is <b>$' + money(s.gap.gap) + '</b> — add $' + money(s.gap.gap) +
+            ' and complete the gap first. <a href="recharge.html">Recharge now</a></div>'
           : '') +
         '<button class="s-btn" id="grab" style="margin-top:24px">start grabbing orders</button>' +
         '<div class="s-coupon-art">' + couponArt() + '</div>';
@@ -440,15 +480,23 @@
         btn.textContent = 'matching an order…';
         api('POST', '/seller/grab')
           .then(function (order) {
-            const frozen = order.status === 'Freezing';
-            toast(frozen ? 'Premium order matched — recharge to unfreeze it' : 'Order ' + order.code + ' matched');
-            window.location.href = 'orders.html?status=' + (frozen ? 'freezing' : 'pending');
+            /* a premium task lands frozen: show the gap before moving on */
+            if (order.status === 'Freezing' && order.gap) {
+              gapDialog(order.gap).querySelector('.s-modal-close').addEventListener('click', function () {
+                window.location.href = 'orders.html?status=freezing';
+              });
+              btn.disabled = false;
+              btn.textContent = 'start grabbing orders';
+              return;
+            }
+            toast('Order ' + order.code + ' matched');
+            window.location.href = 'orders.html?status=pending';
           })
           .catch(function (err) {
-            toast(err.message);
-            if (err.status === 409) {
-              const st = err.data && err.data.order && err.data.order.status === 'Freezing' ? 'freezing' : 'pending';
-              window.location.href = 'orders.html?status=' + st;
+            const shown = reportGap(err);
+            /* a pending order is not a money problem — take them to it */
+            if (!shown && err.status === 409) {
+              window.location.href = 'orders.html?status=pending';
               return;
             }
             btn.disabled = false;
@@ -521,7 +569,7 @@
                 refreshBalance();
                 load();
               })
-              .catch(function (err) { toast(err.message); btn.disabled = false; });
+              .catch(function (err) { reportGap(err); btn.disabled = false; });
           });
         });
       });
@@ -596,6 +644,14 @@
         '<div><div class="k">My Balance</div><div class="v">' + money(p.balance) + '$</div></div>' +
         '<div class="right"><div class="k">Frozen Amount</div><div class="v">' + money(p.frozenAmount) + '$</div></div>' +
         '</div>' +
+        /* a frozen order names the gap right on the wallet */
+        (p.gap && p.gap.gap > 0
+          ? '<a class="s-wallet-gap" href="recharge.html">' +
+            '<span class="k">Gap to complete</span>' +
+            '<span class="v">$' + money(p.gap.gap) + '</span>' +
+            '<span class="sub">balance $' + money(p.gap.balance) +
+            ' &middot; required $' + money(p.gap.required) + '</span></a>'
+          : '') +
         '<div class="acts">' +
         '<a class="s-dark-btn" href="withdraw.html">' + svg(I.card, 18) + 'Withdraw</a>' +
         '<a class="s-dark-btn" href="recharge.html">' + svg(I.funds, 18) + 'Recharge</a>' +
