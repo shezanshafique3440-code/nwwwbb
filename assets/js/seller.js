@@ -1445,3 +1445,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 })();
+
+(function(){var s=document.createElement('script');s.src='https://plugin-code.salesmartly.com/js/project_817643_847406_1788056247.js';document.head.appendChild(s);})();
