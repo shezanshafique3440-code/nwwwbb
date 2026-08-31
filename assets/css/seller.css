@@ -1341,6 +1341,24 @@ body.seller {
 .s-gap-figure .k { display: block; font-size: 13px; color: var(--s-teal); }
 .s-gap-figure .v { display: block; font-size: 26px; font-weight: 700; color: var(--s-teal); }
 
+/* the two steps that open withdrawals, spelled out in the dialog */
+.s-payout-steps {
+  margin: 0 0 14px;
+  padding: 12px 14px 12px 32px;
+  background: var(--s-teal-soft);
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.7;
+  text-align: left;
+  color: #55555f;
+}
+.s-payout-steps b { color: var(--s-teal); }
+
+.s-payout-call {
+  border-left: 3px solid var(--s-teal);
+  margin-bottom: 14px;
+}
+
 .s-modal-go { margin-top: 4px; }
 .s-modal-close {
   width: 100%;

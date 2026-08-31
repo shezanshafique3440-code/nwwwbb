@@ -436,6 +436,20 @@ window.DB = (function () {
     ['Uniqlo Ultra Light Down seamless parka', 79.9, '\u{1F9E5}']
   ];
 
+  /* Every seeded member has been paid before, so each carries an account on
+     file. Only a brand-new sign-up starts with nothing, and the withdrawal
+     screen sends them to add one. */
+  const bankFor = function (i, name) {
+    const banks = ['ICICI', 'HDFC', 'SBI', 'Axis Bank', 'Kotak'];
+    return {
+      method: 'Bank Transfer',
+      bank: banks[i % banks.length],
+      beneficiary: name,
+      account: String(50100000000 + i * 7919),
+      ifsc: banks[i % banks.length].slice(0, 4).toUpperCase().replace(/[^A-Z]/g, 'X') + '000' + (1200 + i)
+    };
+  };
+
   const sellers = [
     {
       id: 9001,
@@ -499,6 +513,8 @@ window.DB = (function () {
       inviter: 'rehan.k'
     }
   ];
+
+  sellers.forEach(function (s, i) { s.bank = bankFor(i, s.name); });
 
   /* Grabbed orders. The pending one is the card the app shows first;
      the thirteen completed ones add up to today's 671.79 commission. */

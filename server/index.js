@@ -978,6 +978,60 @@ function gapOf(balance, required) {
   };
 }
 
+/* Money only leaves the platform to an account the seller has already put on
+   file, so the withdrawal screen asks this first. It answers in the two steps
+   the seller has to take: pick a payment method, then fill it in. */
+function payoutOf(seller) {
+  const method = String(seller.bank_method || '').trim();
+  const ready = function () {
+    return {
+      ready: true, step: '', method: method,
+      title: '', error: '', hint: ''
+    };
+  };
+
+  if (!method) {
+    return {
+      ready: false,
+      step: 'method',
+      method: '',
+      title: 'Add a bank account first',
+      error: 'Add a bank account first. You have not added any account to be paid into yet.',
+      hint: 'Open Wallet address, select your payment method and add it.'
+    };
+  }
+
+  if (/bank/i.test(method)) {
+    const missing = [];
+    if (!String(seller.bank_beneficiary || '').trim()) missing.push('beneficiary name');
+    if (!String(seller.bank_account || '').trim()) missing.push('bank account number');
+    if (!String(seller.bank_ifsc || '').trim()) missing.push('IFSC');
+    if (missing.length) {
+      return {
+        ready: false,
+        step: 'details',
+        method: method,
+        title: 'Finish your bank account',
+        error: 'Your ' + method + ' account still needs the ' + missing.join(', ') + '.',
+        hint: 'Open Wallet address, select ' + method + ' and add it.'
+      };
+    }
+    return ready();
+  }
+
+  if (!String(seller.wallet || '').trim()) {
+    return {
+      ready: false,
+      step: 'details',
+      method: method,
+      title: 'Add your ' + method + ' address',
+      error: 'You chose ' + method + ' but no address is saved against it.',
+      hint: 'Open Wallet address, select ' + method + ' and add it.'
+    };
+  }
+  return ready();
+}
+
 function sellerSummary(me) {
   const fresh = q.userById.get(me.id);
   const vip = vipFor(fresh.balance);
@@ -1080,6 +1134,8 @@ function sellerApi(req, res, me, parts, method, body) {
       creditScore: fresh.credit_score,
       membership: fresh.membership,
       wallet: fresh.wallet || '',
+      /* whether there is an account to be paid into, and what is missing */
+      payout: payoutOf(fresh),
       /* money held by withdrawal requests waiting for approval */
       frozenAmount: q.heldFor.get(fresh.name).total
     }));
@@ -1497,6 +1553,11 @@ function sellerApi(req, res, me, parts, method, body) {
   if (head === 'withdraw' && method === 'POST') {
     const amount = Number(body.amount || 0);
     const seller = q.userById.get(me.id);
+
+    /* nothing goes out until there is an account to send it to */
+    const payout = payoutOf(seller);
+    if (!payout.ready) return send(res, 400, { error: payout.error, payout: payout });
+
     if (body.password !== undefined && !store.verifyPassword(body.password || '', seller.password)) {
       return send(res, 400, { error: 'Your login password is not right' });
     }
@@ -1506,10 +1567,11 @@ function sellerApi(req, res, me, parts, method, body) {
       return send(res, 400, { error: 'Finish your open order before withdrawing' });
     }
 
-    const account = String(body.account || seller.phone || seller.email);
+    const onFile = /bank/i.test(payout.method) ? seller.bank_account : seller.wallet;
+    const account = String(body.account || onFile || seller.phone || seller.email);
     db.prepare(
       "INSERT INTO withdraws (user, email, amount, method, account, status, date, note) VALUES (?, ?, ?, ?, ?, 'Pending', ?, '')"
-    ).run(seller.name, seller.email, amount, String(body.method || 'USDT (TRC20)'), account, today());
+    ).run(seller.name, seller.email, amount, String(body.method || payout.method || 'USDT (TRC20)'), account, today());
     /* the amount is held until an administrator approves the request */
     db.prepare('UPDATE users SET balance = balance - ? WHERE id = ?').run(amount, me.id);
     return send(res, 201, { ok: true, amount: amount, summary: sellerSummary(me) });

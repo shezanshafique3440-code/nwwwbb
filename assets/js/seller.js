@@ -165,6 +165,36 @@
     return wrap;
   }
 
+  /* Withdrawing without an account on file is the same conversation every
+     time: what is missing, and the two steps in Wallet address that fix it. */
+  function payoutDialog(pay) {
+    document.querySelectorAll('.s-modal').forEach(function (m) { m.remove(); });
+
+    const wrap = document.createElement('div');
+    wrap.className = 's-modal';
+    wrap.innerHTML =
+      '<div class="s-modal-card" role="alertdialog" aria-labelledby="payTitle">' +
+      '<h3 id="payTitle">' + esc(pay.title || 'Add a bank account first') + '</h3>' +
+      '<p class="line">' + esc(pay.error) + '</p>' +
+      '<ol class="s-payout-steps">' +
+      '<li>Open <b>Wallet address</b>.</li>' +
+      '<li>Select your <b>payment method</b>.</li>' +
+      '<li>Add the account and save it.</li>' +
+      '</ol>' +
+      '<a class="s-btn s-modal-go" href="wallet.html?add=1">Go to Wallet address</a>' +
+      '<button class="s-modal-close" type="button">Close</button>' +
+      '</div>';
+    document.body.appendChild(wrap);
+
+    const shut = function () { wrap.remove(); };
+    wrap.querySelector('.s-modal-close').addEventListener('click', shut);
+    wrap.addEventListener('click', function (e) { if (e.target === wrap) shut(); });
+    document.addEventListener('keydown', function esc2(e) {
+      if (e.key === 'Escape') { shut(); document.removeEventListener('keydown', esc2); }
+    });
+    return wrap;
+  }
+
   /* an error carrying a gap gets the dialog; anything else is just a toast */
   function reportGap(err) {
     const d = err && err.data;
@@ -668,6 +698,16 @@
 
         '<button class="s-btn" data-logout style="margin-top:30px">Logout</button>';
 
+      /* no account on file means the form has nothing to pay into, so the
+         button says so here rather than letting the seller fill it in first */
+      const wBtn = main.querySelector('.acts a[href="withdraw.html"]');
+      if (wBtn && p.payout && !p.payout.ready) {
+        wBtn.addEventListener('click', function (e) {
+          e.preventDefault();
+          payoutDialog(p.payout);
+        });
+      }
+
       main.querySelector('[data-logout]').addEventListener('click', function () {
         api('POST', '/auth/logout').then(function () { window.location.href = 'login.html'; });
       });
@@ -857,6 +897,19 @@
     api('GET', '/seller/profile').then(function (p) {
       const masked = String(p.phone || '').replace(/^(\d{3})\d+(\d{3})$/, '$1****$2') || p.email;
 
+      /* reached straight from the address bar, with nothing to be paid into */
+      if (p.payout && !p.payout.ready) {
+        main.innerHTML =
+          '<div class="s-form-card">' +
+          '<p class="s-page-title" style="margin-top:0">' + esc(p.payout.title) + '</p>' +
+          '<p class="s-form-note" style="text-align:left">' + esc(p.payout.error) + '</p>' +
+          '<p class="s-form-note" style="text-align:left">' + esc(p.payout.hint) + '</p>' +
+          '<a class="s-btn s-big-btn" href="wallet.html?add=1">Go to Wallet address</a>' +
+          '</div>';
+        payoutDialog(p.payout);
+        return;
+      }
+
       main.innerHTML =
         '<div class="s-withdraw-card">' +
         '<div class="amount">$: ' + money(p.balance) + '</div>' +
@@ -884,7 +937,11 @@
             toast('Withdrawal of ' + money(r.amount) + ' requested');
             window.location.href = 'withdraw-records.html';
           })
-          .catch(function (err) { toast(err.message); btn.disabled = false; });
+          .catch(function (err) {
+            const pay = err && err.data && err.data.payout;
+            if (pay) payoutDialog(pay); else toast(err.message);
+            btn.disabled = false;
+          });
       });
     });
   };
@@ -1018,9 +1075,17 @@
         );
       }
 
+      /* sent here by the withdrawal screen: say which step comes first */
+      const sentToAdd = /[?&]add=1/.test(window.location.search);
+
       function draw(m) {
         main.innerHTML =
           '<p class="s-page-title">Your wallet information</p>' +
+          (sentToAdd && !m
+            ? '<div class="s-form-card s-payout-call"><p class="s-form-note" style="margin:0;text-align:left">' +
+              'Select your payment method below, then add the account you want to be paid into. ' +
+              'Withdrawals open once it is saved.</p></div>'
+            : '') +
           '<div class="s-input-group">' +
           '<select class="s-input" id="method">' +
           '<option value="">Select withdrawal method</option>' +

@@ -431,6 +431,15 @@ function seed() {
       String(u.phone || u.name).replace(/\D/g, '') || u.name,
       u.id
     );
+    /* the payout account a seeded member has already put on file */
+    const sb = u.bank || {};
+    db.prepare(
+      `UPDATE users SET bank_method = ?, bank_name = ?, bank_beneficiary = ?,
+         bank_account = ?, bank_ifsc = ? WHERE id = ?`
+    ).run(
+      sb.method || '', sb.bank || '', sb.beneficiary || '',
+      sb.account || '', sb.ifsc || '', u.id
+    );
   });
 
   const insSellerOrder = db.prepare(
