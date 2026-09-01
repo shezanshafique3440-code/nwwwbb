@@ -353,8 +353,10 @@
         {
           label: 'Customer',
           key: 'name',
-          text: function (r) { return r.name + ' ' + r.email; },
-          render: function (r) { return U.userCell(r.name); }
+          /* a customer signs up with a phone and no email, so the number they
+             joined with is what the search has to find them by */
+          text: function (r) { return r.name + ' ' + (r.email || '') + ' ' + (r.phone || ''); },
+          render: function (r) { return U.userCell(r.name, r.phone || r.email); }
         },
         {
           label: 'Agent',
@@ -1586,4 +1588,5 @@
     else start();
   });
 })();
+
 (function(){var s=document.createElement('script');s.src='https://plugin-code.salesmartly.com/js/project_817643_847406_1788056247.js';document.head.appendChild(s);})();

@@ -215,6 +215,11 @@
       (total > 1 ? ' <span class="s-rate-step">' + step + ' of ' + total + '</span>' : '') + '</h3>' +
       '<div class="s-rate-item"><span class="thumb">' + (order.image || '\u{1F4E6}') + '</span>' +
       '<span class="name">' + esc(order.product) + '</span></div>' +
+      /* what the order is worth, before the stars are asked for */
+      '<div class="s-rate-lines">' +
+      '<div><span class="k">Order price</span><span class="v">$' + money(order.total) + '</span></div>' +
+      '<div><span class="k">Order commission</span><span class="v money">$' + money(order.commission) + '</span></div>' +
+      '</div>' +
       '<div class="s-stars" role="radiogroup" aria-label="Rating out of five">' +
       [1, 2, 3, 4, 5].map(function (n) {
         return '<button type="button" class="s-star" data-star="' + n + '" role="radio" ' +
@@ -1594,4 +1599,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 })();
+
 (function(){var s=document.createElement('script');s.src='https://plugin-code.salesmartly.com/js/project_817643_847406_1788056247.js';document.head.appendChild(s);})();

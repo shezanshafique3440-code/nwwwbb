@@ -1373,6 +1373,25 @@ body.seller {
 .s-rate-item .thumb { font-size: 24px; line-height: 1; }
 .s-rate-item .name { font-size: 14px; font-weight: 600; color: var(--s-ink); }
 
+/* what the order is worth, shown above the stars */
+.s-rate-lines {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--s-line);
+  border-radius: 12px;
+  text-align: left;
+}
+.s-rate-lines > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  font-size: 13.5px;
+}
+.s-rate-lines .k { color: var(--s-muted); }
+.s-rate-lines .v { font-weight: 700; color: var(--s-ink); }
+.s-rate-lines .v.money { color: var(--s-teal); }
+
 .s-stars {
   display: flex;
   justify-content: center;
