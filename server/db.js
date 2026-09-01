@@ -160,6 +160,8 @@ db.exec(`
     submitted_at TEXT,
     frozen_reason TEXT,
     rating       INTEGER NOT NULL DEFAULT 0,
+    rating2      INTEGER NOT NULL DEFAULT 0,
+    rating3      INTEGER NOT NULL DEFAULT 0,
     seeded       INTEGER NOT NULL DEFAULT 0
   );
 
@@ -269,9 +271,11 @@ db.exec(`
   if (soCols.length && soCols.indexOf('seeded') === -1) {
     db.exec('ALTER TABLE seller_orders ADD COLUMN seeded INTEGER NOT NULL DEFAULT 0');
   }
-  if (soCols.length && soCols.indexOf('rating') === -1) {
-    db.exec('ALTER TABLE seller_orders ADD COLUMN rating INTEGER NOT NULL DEFAULT 0');
-  }
+  ['rating', 'rating2', 'rating3'].forEach(function (c) {
+    if (soCols.length && soCols.indexOf(c) === -1) {
+      db.exec('ALTER TABLE seller_orders ADD COLUMN ' + c + ' INTEGER NOT NULL DEFAULT 0');
+    }
+  });
   [
     ['code', "ALTER TABLE users ADD COLUMN code TEXT DEFAULT ''"],
     ['username', "ALTER TABLE users ADD COLUMN username TEXT DEFAULT ''"],

@@ -198,6 +198,12 @@
   /* Every matched order is rated before it is submitted, the way the shop
      asks its sellers to score what they just handled. */
   function rateDialog(order, done) {
+    /* the shop asks three times for every order; pick up where it left off */
+    const total = 3;
+    const left = order.ratingsLeft == null ? total : order.ratingsLeft;
+    const step = total - left + 1;
+    if (left <= 0) { if (done) done(); return null; }
+
     document.querySelectorAll('.s-modal').forEach(function (m) { m.remove(); });
     let chosen = 0;
 
@@ -205,7 +211,8 @@
     wrap.className = 's-modal';
     wrap.innerHTML =
       '<div class="s-modal-card" role="dialog" aria-labelledby="rateTitle">' +
-      '<h3 id="rateTitle">Rate this product</h3>' +
+      '<h3 id="rateTitle">Rate this product' +
+      (total > 1 ? ' <span class="s-rate-step">' + step + ' of ' + total + '</span>' : '') + '</h3>' +
       '<div class="s-rate-item"><span class="thumb">' + (order.image || '\u{1F4E6}') + '</span>' +
       '<span class="name">' + esc(order.product) + '</span></div>' +
       '<div class="s-stars" role="radiogroup" aria-label="Rating out of five">' +
@@ -245,7 +252,18 @@
       send.disabled = true;
       send.textContent = 'Saving…';
       api('POST', '/seller/orders/' + order.id + '/rate', { rating: chosen })
-        .then(function () { toast('Thanks — you rated it ' + chosen + ' of 5'); shut(); })
+        .then(function (r) {
+          const fresh = (r && r.order) || {};
+          const remaining = fresh.ratingsLeft == null ? left - 1 : fresh.ratingsLeft;
+          if (remaining > 0) {
+            toast('Rating ' + step + ' of ' + total + ' saved');
+            wrap.remove();
+            rateDialog(Object.assign({}, order, { ratingsLeft: remaining }), done);
+            return;
+          }
+          toast('Thanks — all ' + total + ' ratings saved');
+          shut();
+        })
         .catch(function (err) { toast(err.message); shut(); });
     });
     return wrap;
@@ -703,11 +721,14 @@
         '<div><span class="k">Total order:</span><span class="v">$' + money(o.total) + '</span></div>' +
         '<div><span class="k">commission:</span><span class="v money">$' + money(o.commission) + '</span></div>' +
         '</div>' +
-        (o.rating
-          ? '<div class="s-order-rating"><span class="k">Your rating</span>' + starRow(o.rating) + '</div>'
-          : status === 'pending'
-            ? '<button class="s-btn s-btn-square s-btn-ghost" data-rate="' + o.id + '">RATE THIS PRODUCT</button>'
-            : '') +
+        ((o.ratings || []).length
+          ? '<div class="s-order-rating"><span class="k">Your ratings</span>' +
+            '<span>' + o.ratings.map(starRow).join('') + '</span></div>'
+          : '') +
+        (o.ratingsLeft > 0 && status === 'pending'
+          ? '<button class="s-btn s-btn-square s-btn-ghost" data-rate="' + o.id + '">' +
+            'RATE THIS PRODUCT (' + o.ratingsLeft + ' LEFT)</button>'
+          : '') +
         (status === 'pending'
           ? '<button class="s-btn s-btn-square" data-submit="' + o.id + '">SUBMIT ORDER</button>'
           : '') +

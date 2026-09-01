@@ -943,7 +943,10 @@ function mapSellerOrder(o) {
     rate: o.rate,
     status: o.status,
     frozenReason: o.frozen_reason || '',
+    /* an order is scored three times, so the app knows where it is up to */
+    ratings: [o.rating || 0, o.rating2 || 0, o.rating3 || 0].filter(function (n) { return n > 0; }),
     rating: o.rating || 0,
+    ratingsLeft: [o.rating, o.rating2, o.rating3].filter(function (n) { return !n; }).length,
     createdAt: o.created_at,
     submittedAt: o.submitted_at
   };
@@ -1140,7 +1143,9 @@ function sellerApi(req, res, me, parts, method, body) {
       joined: fresh.joined,
       inviter: fresh.agent,
       appName: SEED.seller.appName,
-      accountNumber: String(fresh.id).padStart(10, '0'),
+      /* the number they signed up with is the one they know themselves by;
+         the padded row id is only the fallback for a seeded account */
+      accountNumber: fresh.phone || String(fresh.id).padStart(10, '0'),
       inviteCode: fresh.invite_code,
       creditScore: fresh.credit_score,
       membership: fresh.membership,
@@ -1437,9 +1442,12 @@ function sellerApi(req, res, me, parts, method, body) {
 
     const stars = Math.round(Number(body.rating || 0));
     if (!(stars >= 1 && stars <= 5)) return send(res, 400, { error: 'Give the product 1 to 5 stars' });
-    if (order.rating) return send(res, 400, { error: 'This order is already rated' });
 
-    db.prepare('UPDATE seller_orders SET rating = ? WHERE id = ?').run(stars, id);
+    /* three scores are asked for; this one goes in the next empty slot */
+    const slot = ['rating', 'rating2', 'rating3'].filter(function (c) { return !order[c]; })[0];
+    if (!slot) return send(res, 400, { error: 'This order already has all three ratings' });
+
+    db.prepare('UPDATE seller_orders SET ' + slot + ' = ? WHERE id = ?').run(stars, id);
     return send(res, 200, { order: mapSellerOrder(q.sellerOrderById.get(id, me.id)) });
   }
 
@@ -1588,7 +1596,7 @@ function sellerApi(req, res, me, parts, method, body) {
     if (amount < 10) return send(res, 400, { error: 'Minimum withdrawal is 10.00' });
     if (amount > seller.balance) return send(res, 400, { error: 'Amount is more than your balance' });
     if (q.sellerBlocking.all(me.id).length) {
-      return send(res, 400, { error: 'Finish your open order before withdrawing' });
+      return send(res, 400, { error: 'Complete your pending orders and then apply for withdraw' });
     }
 
     const onFile = /bank/i.test(payout.method) ? seller.bank_account : seller.wallet;
