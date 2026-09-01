@@ -1474,20 +1474,6 @@ body.seller {
 }
 .s-rate-send[disabled] { opacity: .5; cursor: not-allowed; }
 
-.s-order-rating {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--s-line);
-}
-.s-order-rating .k { font-size: 13px; color: var(--s-muted); }
-.s-rate-step { font-size: 13px; font-weight: 600; color: var(--s-muted); }
-.s-order-rating span + span { display: block; text-align: right; }
-.s-order-rating .s-star-row + .s-star-row { margin-left: 8px; }
-.s-star-row { font-size: 17px; letter-spacing: 1px; color: #d8d8de; }
-.s-star-row .on { color: #f5b301; }
 
 .s-modal-go { margin-top: 4px; }
 .s-modal-close {

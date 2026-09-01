@@ -280,13 +280,6 @@
     return wrap;
   }
 
-  /* five stars, filled up to the score */
-  function starRow(n) {
-    let out = '<span class="s-star-row" aria-label="Rated ' + n + ' of 5">';
-    for (let i = 1; i <= 5; i++) out += '<span class="' + (i <= n ? 'on' : '') + '">\u2605</span>';
-    return out + '</span>';
-  }
-
   /* an error carrying a gap gets the dialog; anything else is just a toast */
   function reportGap(err) {
     const d = err && err.data;
@@ -726,10 +719,6 @@
         '<div><span class="k">Total order:</span><span class="v">$' + money(o.total) + '</span></div>' +
         '<div><span class="k">commission:</span><span class="v money">$' + money(o.commission) + '</span></div>' +
         '</div>' +
-        ((o.ratings || []).length
-          ? '<div class="s-order-rating"><span class="k">Your ratings</span>' +
-            '<span>' + o.ratings.map(starRow).join('') + '</span></div>'
-          : '') +
         (status === 'pending'
           ? '<button class="s-btn s-btn-square" data-submit="' + o.id + '">SUBMIT ORDER</button>'
           : '') +

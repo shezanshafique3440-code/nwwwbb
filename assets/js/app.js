@@ -1446,6 +1446,24 @@
     });
   };
 
+  /* five stars filled up to a score, the way the member left it */
+  function starRow(n) {
+    let out = '<span class="rating-stars" title="' + n + ' of 5">';
+    for (let i = 1; i <= 5; i++) out += '<span' + (i <= n ? ' class="on"' : '') + '>\u2605</span>';
+    return out + '</span>';
+  }
+
+  /* all three scores on one line, for the table cell */
+  function stars(g) {
+    if (!g || !g.description) return '<span class="text-muted">&mdash;</span>';
+    return (
+      '<span class="rating-cell" title="Description ' + g.description +
+      ', logistics ' + g.logistics + ', service ' + g.service + '">' +
+      starRow(g.description) + starRow(g.logistics) + starRow(g.service) +
+      '</span>'
+    );
+  }
+
   PAGES['seller-orders'] = function (host) {
     withServer(host, '/api/seller-orders', function (rows) {
       window.DataTable(host, {
@@ -1473,10 +1491,21 @@
           },
           { label: 'Total', key: 'total', sortValue: function (r) { return r.total; }, text: function (r) { return U.money(r.total); }, render: function (r) { return U.money(r.total); } },
           { label: 'Commission', key: 'commission', sortValue: function (r) { return r.commission; }, text: function (r) { return U.money(r.commission); }, render: function (r) { return U.money(r.commission); } },
+          {
+            label: 'Rating',
+            sortable: false,
+            /* the three scores the member left when they submitted */
+            render: function (r) { return stars(r.ratings); },
+            text: function (r) {
+              const g = r.ratings || {};
+              return g.description ? g.description + ' ' + g.logistics + ' ' + g.service : '';
+            }
+          },
           { label: 'Status', key: 'status', render: function (r) { return U.badge(r.status); } },
           { label: 'Created At', key: 'createdAt', className: 'nowrap' }
         ],
         onView: function (r) {
+          const g = r.ratings || {};
           U.modal(
             U.esc(r.code),
             U.detailRows(
@@ -1489,7 +1518,17 @@
                 ['Commission', U.money(r.commission) + ' (' + r.rate + '%)'],
                 ['Status', U.badge(r.status)],
                 ['Created at', U.esc(r.createdAt)]
-              ].concat(r.frozenReason ? [['Frozen because', U.esc(r.frozenReason)]] : [])
+              ]
+                .concat(
+                  g.description
+                    ? [
+                        ['Description matches', starRow(g.description)],
+                        ['Logistics services', starRow(g.logistics)],
+                        ['Service attitude', starRow(g.service)]
+                      ]
+                    : [['Rating', '<span class="text-muted">Not rated yet</span>']]
+                )
+                .concat(r.frozenReason ? [['Frozen because', U.esc(r.frozenReason)]] : [])
             )
           );
         },

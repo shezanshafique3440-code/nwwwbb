@@ -800,6 +800,12 @@ async function api(req, res, url) {
           rate: o.rate,
           status: o.status,
           frozenReason: o.frozen_reason || '',
+          /* what the member scored on submitting: description, logistics, service */
+          ratings: {
+            description: o.rating || 0,
+            logistics: o.rating2 || 0,
+            service: o.rating3 || 0
+          },
           createdAt: o.created_at
         };
       }));
