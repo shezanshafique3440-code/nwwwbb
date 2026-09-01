@@ -423,9 +423,18 @@ async function api(req, res, url) {
       if (email && q.userByEmail.get(email)) return send(res, 409, { error: 'That email is already registered' });
       if (phone && q.userByPhone.get(phone)) return send(res, 409, { error: 'That mobile number is already registered' });
 
-      const given = String(body.inviter || 'Admin').trim() || 'Admin';
+      /* The form says which kind of account it is opening: the panel's own
+         sign-up makes a customer, the seller app makes a seller. Guessing
+         from the phone number is what used to file shoppers under Sellers. */
+      const wantsSeller = String(body.as || body.role || 'Customer').toLowerCase() === 'seller';
+      if (wantsSeller && !phone) return send(res, 400, { error: 'A mobile number is required to sign up as a seller' });
+
+      const typed = String(body.inviter || '').trim();
+      const given = typed || 'Admin';
       /* the link may carry either the inviter's name or their invite code */
       const inviter = q.userByInvite.get(given.toUpperCase()) || q.userByName.get(given);
+      /* a code that matches nobody is a typo, not a new agent named after it */
+      if (typed && !inviter) return send(res, 400, { error: 'That invitation code does not belong to anyone' });
       const inviterName = inviter ? inviter.name : given;
       const info = db
         .prepare(
@@ -445,16 +454,15 @@ async function api(req, res, url) {
       while (q.userByInvite.get(code)) code = store.inviteCode();
       db.prepare('UPDATE users SET invite_code = ? WHERE id = ?').run(code, newId);
 
-      if (phone) {
-        /* someone signing up in the seller app arrives as a seller */
-        db.prepare("UPDATE users SET phone = ?, role = 'Seller', username = ? WHERE id = ?").run(phone, phone, newId);
-        if (body.withdrawPassword) {
-          db.prepare('UPDATE users SET withdraw_password = ? WHERE id = ?').run(store.hashPassword(body.withdrawPassword), newId);
-        }
+      if (phone) db.prepare('UPDATE users SET phone = ?, username = ? WHERE id = ?').run(phone, phone, newId);
+      if (body.withdrawPassword) {
+        db.prepare('UPDATE users SET withdraw_password = ? WHERE id = ?')
+          .run(store.hashPassword(body.withdrawPassword), newId);
       }
+      if (wantsSeller) db.prepare("UPDATE users SET role = 'Seller' WHERE id = ?").run(newId);
       const user = q.userById.get(newId);
       const token = createSession(user.id);
-      return send(res, 201, { user: publicUser(user) }, {
+      return send(res, 201, { user: publicUser(user), signedIn: true }, {
         'Set-Cookie': COOKIE + '=' + token + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800'
       });
     }
@@ -486,6 +494,32 @@ async function api(req, res, url) {
   if (head === 'seller') {
     if (me.role !== 'Seller') return send(res, 403, { error: 'Seller account required' });
     return sellerApi(req, res, me, parts.slice(1), method, body);
+  }
+
+  /* ---- a customer's own account ---- */
+  if (head === 'customer') {
+    if (me.role !== 'Customer') return send(res, 403, { error: 'Customer account required' });
+    const fresh = q.userById.get(me.id);
+
+    if (parts[1] === 'me' && method === 'GET') {
+      const orders = db
+        .prepare('SELECT * FROM orders WHERE lower(user) = lower(?) ORDER BY date DESC, id DESC')
+        .all(fresh.name)
+        .map(RESOURCES.orders.map);
+
+      return send(res, 200, {
+        name: fresh.name,
+        phone: fresh.phone || '',
+        email: fresh.email || '',
+        joined: fresh.joined,
+        status: fresh.status,
+        inviter: fresh.agent,
+        inviteCode: fresh.invite_code || '',
+        accountNumber: String(fresh.id).padStart(10, '0'),
+        orders: orders
+      });
+    }
+    return send(res, 404, { error: 'Unknown customer endpoint' });
   }
 
   /* everything below requires a signed-in admin */
@@ -933,6 +967,7 @@ function mapSellerOrder(o) {
     rate: o.rate,
     status: o.status,
     frozenReason: o.frozen_reason || '',
+    rating: o.rating || 0,
     createdAt: o.created_at,
     submittedAt: o.submitted_at
   };
@@ -1417,6 +1452,19 @@ function sellerApi(req, res, me, parts, method, body) {
       shortfall: frozen ? money(total - seller.balance) : 0,
       gap: frozen ? gapOf(seller.balance, total) : null
     }));
+  }
+
+  /* ---- the five stars a seller leaves on the product they matched ---- */
+  if (head === 'orders' && id && sub === 'rate' && method === 'POST') {
+    const order = q.sellerOrderById.get(id, me.id);
+    if (!order) return send(res, 404, { error: 'Order not found' });
+
+    const stars = Math.round(Number(body.rating || 0));
+    if (!(stars >= 1 && stars <= 5)) return send(res, 400, { error: 'Give the product 1 to 5 stars' });
+    if (order.rating) return send(res, 400, { error: 'This order is already rated' });
+
+    db.prepare('UPDATE seller_orders SET rating = ? WHERE id = ?').run(stars, id);
+    return send(res, 200, { order: mapSellerOrder(q.sellerOrderById.get(id, me.id)) });
   }
 
   if (head === 'orders' && id && sub === 'submit' && method === 'POST') {

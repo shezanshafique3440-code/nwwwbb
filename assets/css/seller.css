@@ -1359,6 +1359,61 @@ body.seller {
   margin-bottom: 14px;
 }
 
+/* the five stars a seller leaves on a matched product */
+.s-rate-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin: 0 0 12px;
+  background: var(--s-teal-soft);
+  border-radius: 12px;
+  text-align: left;
+}
+.s-rate-item .thumb { font-size: 24px; line-height: 1; }
+.s-rate-item .name { font-size: 14px; font-weight: 600; color: var(--s-ink); }
+
+.s-stars {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin: 0 0 6px;
+}
+.s-star {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 32px;
+  line-height: 1;
+  color: #d8d8de;
+  cursor: pointer;
+  transition: color .12s, transform .12s;
+}
+.s-star.on { color: #f5b301; }
+.s-star:active { transform: scale(.9); }
+
+.s-rate-word {
+  margin: 0 0 14px;
+  min-height: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--s-teal);
+}
+
+.s-order-rating {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--s-line);
+}
+.s-order-rating .k { font-size: 13px; color: var(--s-muted); }
+.s-star-row { font-size: 17px; letter-spacing: 1px; color: #d8d8de; }
+.s-star-row .on { color: #f5b301; }
+
 .s-modal-go { margin-top: 4px; }
 .s-modal-close {
   width: 100%;

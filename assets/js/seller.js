@@ -195,6 +195,69 @@
     return wrap;
   }
 
+  /* Every matched order is rated before it is submitted, the way the shop
+     asks its sellers to score what they just handled. */
+  function rateDialog(order, done) {
+    document.querySelectorAll('.s-modal').forEach(function (m) { m.remove(); });
+    let chosen = 0;
+
+    const wrap = document.createElement('div');
+    wrap.className = 's-modal';
+    wrap.innerHTML =
+      '<div class="s-modal-card" role="dialog" aria-labelledby="rateTitle">' +
+      '<h3 id="rateTitle">Rate this product</h3>' +
+      '<div class="s-rate-item"><span class="thumb">' + (order.image || '\u{1F4E6}') + '</span>' +
+      '<span class="name">' + esc(order.product) + '</span></div>' +
+      '<div class="s-stars" role="radiogroup" aria-label="Rating out of five">' +
+      [1, 2, 3, 4, 5].map(function (n) {
+        return '<button type="button" class="s-star" data-star="' + n + '" role="radio" ' +
+          'aria-checked="false" aria-label="' + n + ' star' + (n > 1 ? 's' : '') + '">\u2605</button>';
+      }).join('') +
+      '</div>' +
+      '<p class="s-rate-word" data-word>Tap the stars to rate</p>' +
+      '<button class="s-btn s-modal-go" data-send disabled>Submit rating</button>' +
+      '<button class="s-modal-close" type="button">Rate later</button>' +
+      '</div>';
+    document.body.appendChild(wrap);
+
+    const WORDS = ['', 'Poor', 'Fair', 'Good', 'Very good', 'Excellent'];
+    const stars = wrap.querySelectorAll('.s-star');
+    const send = wrap.querySelector('[data-send]');
+    const word = wrap.querySelector('[data-word]');
+
+    stars.forEach(function (b) {
+      b.addEventListener('click', function () {
+        chosen = Number(b.getAttribute('data-star'));
+        stars.forEach(function (x) {
+          const on = Number(x.getAttribute('data-star')) <= chosen;
+          x.classList.toggle('on', on);
+          x.setAttribute('aria-checked', on && Number(x.getAttribute('data-star')) === chosen ? 'true' : 'false');
+        });
+        word.textContent = WORDS[chosen];
+        send.disabled = false;
+      });
+    });
+
+    const shut = function () { wrap.remove(); if (done) done(); };
+    wrap.querySelector('.s-modal-close').addEventListener('click', shut);
+
+    send.addEventListener('click', function () {
+      send.disabled = true;
+      send.textContent = 'Saving…';
+      api('POST', '/seller/orders/' + order.id + '/rate', { rating: chosen })
+        .then(function () { toast('Thanks — you rated it ' + chosen + ' of 5'); shut(); })
+        .catch(function (err) { toast(err.message); shut(); });
+    });
+    return wrap;
+  }
+
+  /* five stars, filled up to the score */
+  function starRow(n) {
+    let out = '<span class="s-star-row" aria-label="Rated ' + n + ' of 5">';
+    for (let i = 1; i <= 5; i++) out += '<span class="' + (i <= n ? 'on' : '') + '">\u2605</span>';
+    return out + '</span>';
+  }
+
   /* an error carrying a gap gets the dialog; anything else is just a toast */
   function reportGap(err) {
     const d = err && err.data;
@@ -519,8 +582,12 @@
               btn.textContent = 'start grabbing orders';
               return;
             }
+            /* the shop asks for the score on what was just matched, then
+               the seller carries on to the order itself */
             toast('Order ' + order.code + ' matched');
-            window.location.href = 'orders.html?status=pending';
+            rateDialog(order, function () {
+              window.location.href = 'orders.html?status=pending';
+            });
           })
           .catch(function (err) {
             const shown = reportGap(err);
@@ -590,6 +657,12 @@
           return;
         }
         list.innerHTML = rows.map(orderCard).join('');
+        list.querySelectorAll('[data-rate]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            const o = rows.filter(function (r) { return String(r.id) === btn.getAttribute('data-rate'); })[0];
+            if (o) rateDialog(o, load);
+          });
+        });
         list.querySelectorAll('[data-submit]').forEach(function (btn) {
           btn.addEventListener('click', function () {
             btn.disabled = true;
@@ -619,6 +692,11 @@
         '<div><span class="k">Total order:</span><span class="v">$' + money(o.total) + '</span></div>' +
         '<div><span class="k">commission:</span><span class="v money">$' + money(o.commission) + '</span></div>' +
         '</div>' +
+        (o.rating
+          ? '<div class="s-order-rating"><span class="k">Your rating</span>' + starRow(o.rating) + '</div>'
+          : status === 'pending'
+            ? '<button class="s-btn s-btn-square s-btn-ghost" data-rate="' + o.id + '">RATE THIS PRODUCT</button>'
+            : '') +
         (status === 'pending'
           ? '<button class="s-btn s-btn-square" data-submit="' + o.id + '">SUBMIT ORDER</button>'
           : '') +
@@ -1396,7 +1474,10 @@
           name: named,
           phone: phone,
           password: password,
-          inviter: main.querySelector('#invite').value.trim() || 'admin'
+          inviter: main.querySelector('#invite').value.trim() || 'admin',
+          /* this door opens a seller account — the panel's own sign-up
+             makes customers */
+          as: 'Seller'
         })
           .then(function () { window.location.href = 'index.html'; })
           .catch(function (e2) { fail(e2.message, btn, label); });

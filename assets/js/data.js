@@ -639,7 +639,7 @@ window.DB = (function () {
   const rechargePresets = [100, 200, 500, 1000, 2000, 3000, 5000, 8000];
 
   const db = {
-    admin: { name: 'admin', email: 'admin@club21mall.com', role: 'Administrator' },
+    admin: { name: 'admin', email: 'admin@club21mall.com', phone: '0000000001', role: 'Administrator' },
 
     orders: orders,
     withdraws: withdraws,

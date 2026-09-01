@@ -159,6 +159,7 @@ db.exec(`
     created_at   TEXT NOT NULL,
     submitted_at TEXT,
     frozen_reason TEXT,
+    rating       INTEGER NOT NULL DEFAULT 0,
     seeded       INTEGER NOT NULL DEFAULT 0
   );
 
@@ -267,6 +268,9 @@ db.exec(`
   }
   if (soCols.length && soCols.indexOf('seeded') === -1) {
     db.exec('ALTER TABLE seller_orders ADD COLUMN seeded INTEGER NOT NULL DEFAULT 0');
+  }
+  if (soCols.length && soCols.indexOf('rating') === -1) {
+    db.exec('ALTER TABLE seller_orders ADD COLUMN rating INTEGER NOT NULL DEFAULT 0');
   }
   [
     ['code', "ALTER TABLE users ADD COLUMN code TEXT DEFAULT ''"],
@@ -392,8 +396,10 @@ function seed() {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
 
-  /* the administrator that owns the panel */
-  insUser.run(1000, S.admin.name, S.admin.email, defaultPassword, 'Admin', '', '', 0, 0, 'Active', '2026-03-01', '', 0, null);
+  /* the administrator that owns the panel — signed in by phone like everyone else */
+  insUser.run(1000, S.admin.name, S.admin.email, defaultPassword, 'Admin', '', '', 0, 0, 'Active', '2026-03-01',
+    S.admin.phone || '', 0, null);
+  db.prepare('UPDATE users SET username = ? WHERE id = 1000').run(S.admin.phone || S.admin.name);
 
   const setExtras = db.prepare(
     `UPDATE users SET username = ?, code = COALESCE(NULLIF(?, ''), code), phone = ?,

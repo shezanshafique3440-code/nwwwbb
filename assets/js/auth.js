@@ -13,9 +13,12 @@
     if (b) b.innerHTML = icon(t === 'dark' ? 'moon' : 'sun', 22);
   }
 
-  /* a seller belongs in the seller app, everyone else in the panel */
+  /* each role has its own side of the house */
   function homeFor(user) {
-    return user && user.role === 'Seller' ? 'seller/index.html' : 'index.html';
+    const role = user && user.role;
+    if (role === 'Seller') return 'seller/index.html';
+    if (role === 'Customer') return 'customer.html';
+    return 'index.html';
   }
 
   function boot() {
@@ -48,16 +51,19 @@
       });
     });
 
-    /* prefill the inviter from ?inviter=... on the register page */
+    /* an invite link fills the code in; typed by hand it stays as typed */
     const inviter = document.getElementById('inviter');
     if (inviter) {
-      const match = /[?&]inviter=([^&]+)/.exec(window.location.search);
-      inviter.value = match ? decodeURIComponent(match[1]) : 'admin';
+      const match = /[?&](?:inviter|invite)=([^&]+)/.exec(window.location.search);
+      if (match) inviter.value = decodeURIComponent(match[1]);
     }
 
     const form = document.querySelector('form[data-auth]');
     if (!form) return;
 
+
+    const card = form.closest('.signup-card') || form.closest('.auth-card');
+    const signup = card && card.classList.contains('signup-card');
 
     const errorBox = document.createElement('div');
     errorBox.className = 'auth-error';
@@ -76,6 +82,17 @@
       });
     }
 
+    const terms = document.querySelector('[data-terms]');
+    if (terms) {
+      terms.addEventListener('click', function () {
+        errorBox.textContent =
+          'Club Elite 21 accounts are for one person each. Orders are matched by the ' +
+          'platform, commission is credited on submission, and withdrawals are reviewed ' +
+          'by an administrator before payout.';
+        errorBox.style.display = 'block';
+      });
+    }
+
     function fail(message, btn, label) {
       errorBox.textContent = message;
       errorBox.style.display = 'block';
@@ -89,9 +106,11 @@
       const missing = Array.prototype.filter.call(form.querySelectorAll('input[required]'), function (i) {
         return i.type === 'checkbox' ? !i.checked : !i.value.trim();
       });
+      form.querySelectorAll('.is-bad').forEach(function (i) { i.classList.remove('is-bad'); });
       if (missing.length) {
         missing[0].focus();
-        missing[0].style.borderColor = 'var(--danger)';
+        if (signup) missing[0].classList.add('is-bad');
+        else missing[0].style.borderColor = 'var(--danger)';
         return;
       }
 
@@ -101,15 +120,11 @@
       btn.disabled = true;
       btn.textContent = mode === 'register' ? 'Creating account...' : 'Signing in...';
 
-      /* the field takes an email or a mobile number, so send whichever it is */
-      const who = form.querySelector('#email').value.trim();
-      const asPhone = /^[+\d][\d\s-]{5,}$/.test(who);
-
-      /* signing up here creates a seller, and a seller is known by their
-         mobile number — so say that rather than making a dead account */
-      if (mode === 'register' && !asPhone) {
-        return fail('Enter a mobile number to sign up.', btn, label);
-      }
+      /* sign-in takes an email or a mobile number; the sign-up asks for a
+         phone outright, so send whichever the form actually holds */
+      const field = form.querySelector('#phone') || form.querySelector('#email');
+      const who = field.value.trim();
+      const asPhone = field.id === 'phone' || /^[+\d][\d\s-]{5,}$/.test(who);
 
       const payload =
         mode === 'register'
@@ -118,7 +133,11 @@
               email: asPhone ? '' : who,
               phone: asPhone ? who : '',
               password: form.querySelector('#password').value,
-              inviter: form.querySelector('#inviter').value.trim()
+              withdrawPassword: (form.querySelector('#wpass') || {}).value || '',
+              inviter: form.querySelector('#inviter').value.trim(),
+              /* this door opens a shopper's account; sellers sign up in the
+                 seller app, which asks for its own things */
+              as: form.getAttribute('data-role') || 'Customer'
             }
           : {
               email: asPhone ? '' : who,
