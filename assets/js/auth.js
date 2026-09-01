@@ -13,12 +13,9 @@
     if (b) b.innerHTML = icon(t === 'dark' ? 'moon' : 'sun', 22);
   }
 
-  /* each role has its own side of the house */
+  /* an administrator gets the panel, everybody else gets the shop app */
   function homeFor(user) {
-    const role = user && user.role;
-    if (role === 'Seller') return 'seller/index.html';
-    if (role === 'Customer') return 'customer.html';
-    return 'index.html';
+    return user && user.role === 'Admin' ? 'index.html' : 'seller/index.html';
   }
 
   function boot() {

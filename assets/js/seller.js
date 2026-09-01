@@ -15,12 +15,12 @@
   const I = {
     bag: '<defs>' +
       '<linearGradient id="sBag" x1="8" y1="20" x2="56" y2="60" gradientUnits="userSpaceOnUse">' +
-      '<stop stop-color="#3B82F6"/><stop offset="1" stop-color="#1E40AF"/></linearGradient>' +
+      '<stop stop-color="#e9c159"/><stop offset="1" stop-color="#b07d12"/></linearGradient>' +
       '<linearGradient id="sStar" x1="18" y1="4" x2="46" y2="26" gradientUnits="userSpaceOnUse">' +
-      '<stop stop-color="#FDE047"/><stop offset="1" stop-color="#F59E0B"/></linearGradient></defs>' +
+      '<stop stop-color="#fff2cc"/><stop offset="1" stop-color="#e6b83f"/></linearGradient></defs>' +
       '<path d="M10 22h44l-4 34a4 4 0 0 1-4 3.6H18A4 4 0 0 1 14 56z" fill="url(#sBag)" stroke="none"/>' +
-      '<path d="M22 26V19a10 10 0 0 1 20 0v7" stroke="#1E3A8A" stroke-width="3.4"/>' +
-      '<path d="M14 40c8 4 14 5 20 3s12-5 20-3l-2.2 16a4 4 0 0 1-4 3.6H18A4 4 0 0 1 14 56z" fill="#22C55E" opacity=".85" stroke="none"/>' +
+      '<path d="M22 26V19a10 10 0 0 1 20 0v7" stroke="#8a6210" stroke-width="3.4"/>' +
+      '<path d="M14 40c8 4 14 5 20 3s12-5 20-3l-2.2 16a4 4 0 0 1-4 3.6H18A4 4 0 0 1 14 56z" fill="#f2d68e" opacity=".85" stroke="none"/>' +
       '<path d="M32 2l4.6 9.4 10.4 1.5-7.5 7.3 1.8 10.3L32 25.6l-9.3 4.9 1.8-10.3-7.5-7.3 10.4-1.5z" fill="url(#sStar)" stroke="none"/>',
     headset: '<path d="M4 13v-1a8 8 0 0 1 16 0v1"/><rect x="2.5" y="13" width="4.5" height="6" rx="2"/>' +
       '<rect x="17" y="13" width="4.5" height="6" rx="2"/><path d="M19 19v.6a2.4 2.4 0 0 1-2.4 2.4H13"/>',
@@ -591,9 +591,20 @@
           })
           .catch(function (err) {
             const shown = reportGap(err);
-            /* a pending order is not a money problem — take them to it */
+            /* An open order blocks the next grab. That order still wants its
+               score, so ask for it here rather than bouncing away in silence. */
             if (!shown && err.status === 409) {
-              window.location.href = 'orders.html?status=pending';
+              const open = err.data && err.data.order;
+              const go = function () { window.location.href = 'orders.html?status=pending'; };
+              if (open && !open.rating) {
+                toast(err.message);
+                rateDialog(open, go);
+                btn.disabled = false;
+                btn.textContent = 'start grabbing orders';
+                return;
+              }
+              toast(err.message);
+              go();
               return;
             }
             btn.disabled = false;
@@ -787,7 +798,7 @@
       }
 
       main.querySelector('[data-logout]').addEventListener('click', function () {
-        api('POST', '/auth/logout').then(function () { window.location.href = 'login.html'; });
+        api('POST', '/auth/logout').then(function () { window.location.href = '../login.html'; });
       });
     });
   };
@@ -1392,99 +1403,14 @@
       '</div>';
   };
 
-  /* ---------------- login and register ---------------- */
-  SCREENS.login = function (main) {
+  /* ---------------- login ---------------- */
+  /* Signing in and signing up both happen at the one door on the site, so
+     this screen only carries whoever lands on it back to it. */
+  SCREENS.login = function () {
     const url = new URL(window.location.href);
-    const startTab = (url.searchParams.get('tab') || 'login').toLowerCase();
-    /* an invite link carries the code, so the joiner does not have to type it */
-    const invited = url.searchParams.get('invite') || url.searchParams.get('inviter') || '';
-    let tab = startTab === 'register' ? 'register' : 'login';
-
-    function draw() {
-      main.innerHTML =
-        '<div class="s-auth-cart">\u{1F6D2}</div>' +
-        '<div class="s-auth-tabs">' +
-        '<button class="' + (tab === 'login' ? 'active' : '') + '" data-tab="login">Login</button>' +
-        '<button class="' + (tab === 'register' ? 'active' : '') + '" data-tab="register">Register</button>' +
-        '</div>' +
-        '<div class="s-error" id="err" style="display:none"></div>' +
-        (tab === 'login'
-          ? '<div class="s-auth-field"><label>your mobile phone number</label>' +
-            '<input class="s-input" id="phone" inputmode="numeric" placeholder="your mobile phone number"></div>' +
-            '<div class="s-auth-field"><label>your password</label>' +
-            '<input class="s-input" id="password" type="password" placeholder="your password"></div>' +
-            '<button class="s-btn" id="go">Login</button>'
-          : '<div class="s-auth-field"><label>your name</label>' +
-            '<input class="s-input" id="name" placeholder="your name"></div>' +
-            '<div class="s-auth-field"><label>your mobile phone number</label>' +
-            '<input class="s-input" id="phone" inputmode="numeric" placeholder="your mobile phone number"></div>' +
-            '<div class="s-auth-field"><label>your password</label>' +
-            '<input class="s-input" id="password" type="password" placeholder="your password"></div>' +
-            '<div class="s-auth-field"><label>confirm password</label>' +
-            '<input class="s-input" id="confirm" type="password" placeholder="confirm password"></div>' +
-            '<div class="s-auth-field"><label>invitation code</label>' +
-            '<input class="s-input" id="invite" placeholder="invitation code" value="' + esc(invited) + '"></div>' +
-            '<button class="s-btn" id="go">Register</button>') +
-        '<p class="s-terms">By continuing, you agree to our Terms and Conditions &amp; Privacy Policy</p>';
-
-      main.querySelectorAll('[data-tab]').forEach(function (b) {
-        b.addEventListener('click', function () {
-          tab = b.getAttribute('data-tab');
-          draw();
-        });
-      });
-
-      const err = main.querySelector('#err');
-      const fail = function (message, btn, label) {
-        err.textContent = message;
-        err.style.display = 'block';
-        btn.disabled = false;
-        btn.textContent = label;
-      };
-
-      main.querySelector('#go').addEventListener('click', function (e) {
-        const btn = e.currentTarget;
-        const label = btn.textContent;
-        const phone = main.querySelector('#phone').value.trim();
-        const password = main.querySelector('#password').value;
-        err.style.display = 'none';
-
-        if (!phone || !password) return fail('Enter your mobile number and password', btn, label);
-
-        btn.disabled = true;
-        btn.textContent = tab === 'login' ? 'Signing in…' : 'Creating account…';
-
-        if (tab === 'login') {
-          api('POST', '/auth/login', { phone: phone, password: password })
-            .then(function (r) {
-              /* an administrator is signed in either way — send them to their
-                 own side rather than turning them away */
-              window.location.href = r.user.role === 'Admin' ? '../index.html' : 'index.html';
-            })
-            .catch(function (e2) { fail(e2.message, btn, label); });
-          return;
-        }
-
-        if (password !== main.querySelector('#confirm').value) return fail('The two passwords do not match', btn, label);
-
-        const named = main.querySelector('#name').value.trim();
-        if (!named) return fail('Enter your name', btn, label);
-
-        api('POST', '/auth/register', {
-          name: named,
-          phone: phone,
-          password: password,
-          inviter: main.querySelector('#invite').value.trim() || 'admin',
-          /* this door opens a seller account — the panel's own sign-up
-             makes customers */
-          as: 'Seller'
-        })
-          .then(function () { window.location.href = 'index.html'; })
-          .catch(function (e2) { fail(e2.message, btn, label); });
-      });
-    }
-
-    draw();
+    const invite = url.searchParams.get('invite') || url.searchParams.get('inviter') || '';
+    const to = url.searchParams.get('tab') === 'register' ? '../register.html' : '../login.html';
+    window.location.replace(to + (invite ? '?inviter=' + encodeURIComponent(invite) : ''));
   };
 
   /* ---------------- the shop window shown to a visitor ---------------- */
@@ -1498,13 +1424,13 @@
         '<h2>' + esc(d.headline) + '</h2>' +
         '<p>' + esc(d.sub) + '</p>' +
         '<span class="offer">' + esc(d.offer) + '</span>' +
-        '<div><a class="shop" href="login.html">Shop Now</a></div>' +
+        '<div><a class="shop" href="../login.html">Shop Now</a></div>' +
         '</div>' +
-        '<a class="s-guest-cta" href="login.html">' + svg(I.fingerprint, 22) + 'Login / Registered account</a>' +
+        '<a class="s-guest-cta" href="../login.html">' + svg(I.fingerprint, 22) + 'Login / Create account</a>' +
         '<div class="s-guest-grid">' +
         d.products.map(function (p) {
           return (
-            '<a class="s-guest-item" href="login.html">' +
+            '<a class="s-guest-item" href="../login.html">' +
             '<div class="shot">' + p.image + '</div>' +
             '<div class="name">' + esc(p.name) + '</div>' +
             '<div class="price">$' + money(p.price) + '</div></a>'
@@ -1512,8 +1438,8 @@
         }).join('') +
         '</div>' +
         '<div class="s-guest-bar"><span class="cart">\u{1F6D2}</span>' +
-        '<a class="ghost" href="login.html">Login</a>' +
-        '<a class="solid" href="login.html?tab=register">Registered account</a></div>';
+        '<a class="ghost" href="../login.html">Login</a>' +
+        '<a class="solid" href="../register.html">Create account</a></div>';
     });
   };
 
@@ -1620,7 +1546,7 @@
     api('GET', '/seller/summary')
       .then(function () { SCREENS[page](main); })
       .catch(function (err) {
-        if (err.status === 401) return (window.location.href = 'login.html');
+        if (err.status === 401) return (window.location.href = '../login.html');
         if (err.status === 403) return (window.location.href = '../index.html');
         main.innerHTML =
           '<div class="s-empty">Could not reach the server.<br><br>' +

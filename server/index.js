@@ -423,11 +423,11 @@ async function api(req, res, url) {
       if (email && q.userByEmail.get(email)) return send(res, 409, { error: 'That email is already registered' });
       if (phone && q.userByPhone.get(phone)) return send(res, 409, { error: 'That mobile number is already registered' });
 
-      /* The form says which kind of account it is opening: the panel's own
-         sign-up makes a customer, the seller app makes a seller. Guessing
-         from the phone number is what used to file shoppers under Sellers. */
-      const wantsSeller = String(body.as || body.role || 'Customer').toLowerCase() === 'seller';
-      if (wantsSeller && !phone) return send(res, 400, { error: 'A mobile number is required to sign up as a seller' });
+      /* Signing up makes a customer. The site has one door and one kind of
+         account behind it; the seeded Seller rows are the older demo records
+         and the shop app serves both. */
+      const wantsSeller = String(body.as || body.role || '').toLowerCase() === 'seller';
+      if (!phone) return send(res, 400, { error: 'A mobile number is required' });
 
       const typed = String(body.inviter || '').trim();
       const given = typed || 'Admin';
@@ -490,36 +490,12 @@ async function api(req, res, url) {
   const me = sessionUser(req);
   if (!me) return send(res, 401, { error: 'Not signed in' });
 
-  /* ---- seller app ---- */
+  /* ---- the shop app: a customer's own side of the site ---- */
   if (head === 'seller') {
-    if (me.role !== 'Seller') return send(res, 403, { error: 'Seller account required' });
-    return sellerApi(req, res, me, parts.slice(1), method, body);
-  }
-
-  /* ---- a customer's own account ---- */
-  if (head === 'customer') {
-    if (me.role !== 'Customer') return send(res, 403, { error: 'Customer account required' });
-    const fresh = q.userById.get(me.id);
-
-    if (parts[1] === 'me' && method === 'GET') {
-      const orders = db
-        .prepare('SELECT * FROM orders WHERE lower(user) = lower(?) ORDER BY date DESC, id DESC')
-        .all(fresh.name)
-        .map(RESOURCES.orders.map);
-
-      return send(res, 200, {
-        name: fresh.name,
-        phone: fresh.phone || '',
-        email: fresh.email || '',
-        joined: fresh.joined,
-        status: fresh.status,
-        inviter: fresh.agent,
-        inviteCode: fresh.invite_code || '',
-        accountNumber: String(fresh.id).padStart(10, '0'),
-        orders: orders
-      });
+    if (me.role !== 'Customer' && me.role !== 'Seller') {
+      return send(res, 403, { error: 'Customer account required' });
     }
-    return send(res, 404, { error: 'Unknown customer endpoint' });
+    return sellerApi(req, res, me, parts.slice(1), method, body);
   }
 
   /* everything below requires a signed-in admin */

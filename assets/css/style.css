@@ -984,49 +984,6 @@ html[data-theme="dark"] .badge-outofstock { background: rgba(234, 84, 85, 0.18);
   margin-bottom: 14px;
   font-size: 13px;
 }
-/* the customer's own corner, in the same dark skin as their sign-up */
-.cust-card { width: min(420px, 100%); }
-.cust-block {
-  background: #172731;
-  border: 1px solid #2c414c;
-  border-radius: 10px;
-  padding: 4px 14px;
-  margin-bottom: 16px;
-}
-.cust-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 10px 0;
-  border-bottom: 1px solid #22343e;
-  font-size: 13px;
-}
-.cust-row:last-child { border-bottom: 0; }
-.cust-row .k { color: #8fa3ae; }
-.cust-row .v { color: #eceff1; font-weight: 600; text-align: right; word-break: break-word; }
-
-.cust-head { font-size: 15px; font-weight: 600; color: #f2f4f6; margin: 0 0 10px; }
-.cust-empty { font-size: 13px; color: #8fa3ae; margin: 0 0 16px; line-height: 1.6; }
-
-.cust-order { padding: 12px 0; border-bottom: 1px solid #22343e; }
-.cust-order:last-child { border-bottom: 0; }
-.cust-order .top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-.cust-order .code { font-size: 12px; color: #8fa3ae; }
-.cust-order .name { font-size: 13.5px; color: #eceff1; margin: 6px 0; }
-.cust-order .bot { display: flex; justify-content: space-between; font-size: 12.5px; color: #8fa3ae; }
-.cust-order .amt { color: #d8bd7e; font-weight: 700; }
-.cust-order .pill {
-  font-size: 11px;
-  padding: 3px 9px;
-  border-radius: 999px;
-  background: #2c414c;
-  color: #cbd7de;
-  text-transform: capitalize;
-}
-.cust-order .pill.completed { background: rgba(40, 199, 111, 0.18); color: #6fe0a4; }
-.cust-order .pill.pending { background: rgba(216, 189, 126, 0.18); color: #e0c88e; }
-.cust-order .pill.cancelled { background: rgba(224, 87, 91, 0.18); color: #ff9b9e; }
-
 .signup-done { text-align: center; }
 .signup-done .signup-title { margin-bottom: 8px; }
 
