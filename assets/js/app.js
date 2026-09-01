@@ -1447,19 +1447,19 @@
   };
 
   /* five stars filled up to a score, the way the member left it */
-  function starRow(n) {
+  function taskStarRow(n) {
     let out = '<span class="rating-stars" title="' + n + ' of 5">';
     for (let i = 1; i <= 5; i++) out += '<span' + (i <= n ? ' class="on"' : '') + '>\u2605</span>';
     return out + '</span>';
   }
 
-  /* all three scores on one line, for the table cell */
-  function stars(g) {
+  /* all three scores stacked, for the Seller Tasks cell */
+  function taskStars(g) {
     if (!g || !g.description) return '<span class="text-muted">&mdash;</span>';
     return (
       '<span class="rating-cell" title="Description ' + g.description +
       ', logistics ' + g.logistics + ', service ' + g.service + '">' +
-      starRow(g.description) + starRow(g.logistics) + starRow(g.service) +
+      taskStarRow(g.description) + taskStarRow(g.logistics) + taskStarRow(g.service) +
       '</span>'
     );
   }
@@ -1495,7 +1495,7 @@
             label: 'Rating',
             sortable: false,
             /* the three scores the member left when they submitted */
-            render: function (r) { return stars(r.ratings); },
+            render: function (r) { return taskStars(r.ratings); },
             text: function (r) {
               const g = r.ratings || {};
               return g.description ? g.description + ' ' + g.logistics + ' ' + g.service : '';
@@ -1522,9 +1522,9 @@
                 .concat(
                   g.description
                     ? [
-                        ['Description matches', starRow(g.description)],
-                        ['Logistics services', starRow(g.logistics)],
-                        ['Service attitude', starRow(g.service)]
+                        ['Description matches', stars(g.description)],
+                        ['Logistics services', stars(g.logistics)],
+                        ['Service attitude', stars(g.service)]
                       ]
                     : [['Rating', '<span class="text-muted">Not rated yet</span>']]
                 )
