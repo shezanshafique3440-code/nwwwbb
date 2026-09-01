@@ -195,81 +195,87 @@
     return wrap;
   }
 
-  /* Every matched order is rated before it is submitted, the way the shop
-     asks its sellers to score what they just handled. */
-  function rateDialog(order, done) {
-    /* the shop asks three times for every order; pick up where it left off */
-    const total = 3;
-    const left = order.ratingsLeft == null ? total : order.ratingsLeft;
-    const step = total - left + 1;
-    if (left <= 0) { if (done) done(); return null; }
+  /* The star rating the shop asks for on every order: how well the
+     description matched, the logistics, and the service attitude — then the
+     order goes in. */
+  const RATE_ROWS = [
+    ['description', 'Description matches'],
+    ['logistics', 'Logistics services'],
+    ['service', 'Service attitude']
+  ];
 
+  function rateDialog(order, done) {
     document.querySelectorAll('.s-modal').forEach(function (m) { m.remove(); });
-    let chosen = 0;
+    const scores = { description: 0, logistics: 0, service: 0 };
 
     const wrap = document.createElement('div');
     wrap.className = 's-modal';
     wrap.innerHTML =
-      '<div class="s-modal-card" role="dialog" aria-labelledby="rateTitle">' +
-      '<h3 id="rateTitle">Rate this product' +
-      (total > 1 ? ' <span class="s-rate-step">' + step + ' of ' + total + '</span>' : '') + '</h3>' +
-      '<div class="s-rate-item"><span class="thumb">' + (order.image || '\u{1F4E6}') + '</span>' +
-      '<span class="name">' + esc(order.product) + '</span></div>' +
-      /* what the order is worth, before the stars are asked for */
+      '<div class="s-modal-card s-rate-card" role="dialog" aria-labelledby="rateTitle">' +
+      '<div class="s-rate-head"><h3 id="rateTitle">Star rating</h3>' +
+      '<button class="s-rate-x" type="button" aria-label="Close">\u00D7</button></div>' +
+      '<div class="s-rate-shot">' + (order.image || '\u{1F4E6}') + '</div>' +
+      '<p class="s-rate-name">' + esc(order.product) + '</p>' +
       '<div class="s-rate-lines">' +
       '<div><span class="k">Order price</span><span class="v">$' + money(order.total) + '</span></div>' +
       '<div><span class="k">Order commission</span><span class="v money">$' + money(order.commission) + '</span></div>' +
       '</div>' +
-      '<div class="s-stars" role="radiogroup" aria-label="Rating out of five">' +
-      [1, 2, 3, 4, 5].map(function (n) {
-        return '<button type="button" class="s-star" data-star="' + n + '" role="radio" ' +
-          'aria-checked="false" aria-label="' + n + ' star' + (n > 1 ? 's' : '') + '">\u2605</button>';
+      RATE_ROWS.map(function (r) {
+        return (
+          '<div class="s-rate-row"><span class="lb">' + r[1] + '</span>' +
+          '<span class="s-stars" role="radiogroup" aria-label="' + r[1] + '" data-row="' + r[0] + '">' +
+          [1, 2, 3, 4, 5].map(function (n) {
+            return '<button type="button" class="s-star" data-star="' + n + '" role="radio" ' +
+              'aria-checked="false" aria-label="' + n + ' star' + (n > 1 ? 's' : '') + '">\u2605</button>';
+          }).join('') +
+          '</span></div>'
+        );
       }).join('') +
-      '</div>' +
-      '<p class="s-rate-word" data-word>Tap the stars to rate</p>' +
-      '<button class="s-btn s-modal-go" data-send disabled>Submit rating</button>' +
-      '<button class="s-modal-close" type="button">Rate later</button>' +
-      '</div>';
+      '<div class="s-rate-foot">' +
+      '<button class="s-rate-cancel" type="button">CANCEL</button>' +
+      '<button class="s-rate-send" type="button" disabled>SUBMIT ORDER</button>' +
+      '</div></div>';
     document.body.appendChild(wrap);
 
-    const WORDS = ['', 'Poor', 'Fair', 'Good', 'Very good', 'Excellent'];
-    const stars = wrap.querySelectorAll('.s-star');
-    const send = wrap.querySelector('[data-send]');
-    const word = wrap.querySelector('[data-word]');
+    const send = wrap.querySelector('.s-rate-send');
+    const ready = function () {
+      return RATE_ROWS.every(function (r) { return scores[r[0]] > 0; });
+    };
 
-    stars.forEach(function (b) {
-      b.addEventListener('click', function () {
-        chosen = Number(b.getAttribute('data-star'));
-        stars.forEach(function (x) {
-          const on = Number(x.getAttribute('data-star')) <= chosen;
-          x.classList.toggle('on', on);
-          x.setAttribute('aria-checked', on && Number(x.getAttribute('data-star')) === chosen ? 'true' : 'false');
+    wrap.querySelectorAll('[data-row]').forEach(function (group) {
+      const key = group.getAttribute('data-row');
+      group.querySelectorAll('.s-star').forEach(function (b) {
+        b.addEventListener('click', function () {
+          scores[key] = Number(b.getAttribute('data-star'));
+          group.querySelectorAll('.s-star').forEach(function (x) {
+            const n = Number(x.getAttribute('data-star'));
+            x.classList.toggle('on', n <= scores[key]);
+            x.setAttribute('aria-checked', n === scores[key] ? 'true' : 'false');
+          });
+          send.disabled = !ready();
         });
-        word.textContent = WORDS[chosen];
-        send.disabled = false;
       });
     });
 
-    const shut = function () { wrap.remove(); if (done) done(); };
-    wrap.querySelector('.s-modal-close').addEventListener('click', shut);
+    const shut = function (ok) { wrap.remove(); if (done) done(ok === true); };
+    wrap.querySelector('.s-rate-x').addEventListener('click', function () { shut(false); });
+    wrap.querySelector('.s-rate-cancel').addEventListener('click', function () { shut(false); });
 
+    /* the button says submit order, so it rates and submits in one go */
     send.addEventListener('click', function () {
       send.disabled = true;
-      send.textContent = 'Saving…';
-      api('POST', '/seller/orders/' + order.id + '/rate', { rating: chosen })
+      send.textContent = 'SUBMITTING…';
+      api('POST', '/seller/orders/' + order.id + '/rate', scores)
+        .then(function () { return api('POST', '/seller/orders/' + order.id + '/submit'); })
         .then(function (r) {
-          const fresh = (r && r.order) || {};
-          const remaining = fresh.ratingsLeft == null ? left - 1 : fresh.ratingsLeft;
-          if (remaining > 0) {
-            toast('Rating ' + step + ' of ' + total + ' saved');
-            wrap.remove();
-            rateDialog(Object.assign({}, order, { ratingsLeft: remaining }), done);
-            return;
-          }
-          toast('Thanks — all ' + total + ' ratings saved');
-          shut();
+          toast('Order submitted — ' + money(r.order.commission) + ' commission added');
+          shut(true);
         })
-        .catch(function (err) { toast(err.message); shut(); });
+        .catch(function (err) {
+          const shown = reportGap(err);
+          if (!shown) toast(err.message);
+          shut(false);
+        });
     });
     return wrap;
   }
@@ -611,6 +617,8 @@
             rateDialog(order, function () {
               window.location.href = 'orders.html?status=pending';
             });
+            btn.disabled = false;
+            btn.textContent = 'start grabbing orders';
           })
           .catch(function (err) {
             const shown = reportGap(err);
@@ -691,22 +699,14 @@
           return;
         }
         list.innerHTML = rows.map(orderCard).join('');
-        list.querySelectorAll('[data-rate]').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            const o = rows.filter(function (r) { return String(r.id) === btn.getAttribute('data-rate'); })[0];
-            if (o) rateDialog(o, load);
-          });
-        });
+        /* an order is rated as it is submitted, so one button does both */
         list.querySelectorAll('[data-submit]').forEach(function (btn) {
           btn.addEventListener('click', function () {
-            btn.disabled = true;
-            api('POST', '/seller/orders/' + btn.getAttribute('data-submit') + '/submit')
-              .then(function (r) {
-                toast('Order submitted — ' + money(r.order.commission) + ' commission added');
-                refreshBalance();
-                load();
-              })
-              .catch(function (err) { reportGap(err); btn.disabled = false; });
+            const o = rows.filter(function (r) { return String(r.id) === btn.getAttribute('data-submit'); })[0];
+            if (!o) return;
+            rateDialog(o, function (submitted) {
+              if (submitted) { refreshBalance(); load(); }
+            });
           });
         });
       });
@@ -729,10 +729,6 @@
         ((o.ratings || []).length
           ? '<div class="s-order-rating"><span class="k">Your ratings</span>' +
             '<span>' + o.ratings.map(starRow).join('') + '</span></div>'
-          : '') +
-        (o.ratingsLeft > 0 && status === 'pending'
-          ? '<button class="s-btn s-btn-square s-btn-ghost" data-rate="' + o.id + '">' +
-            'RATE THIS PRODUCT (' + o.ratingsLeft + ' LEFT)</button>'
           : '') +
         (status === 'pending'
           ? '<button class="s-btn s-btn-square" data-submit="' + o.id + '">SUBMIT ORDER</button>'

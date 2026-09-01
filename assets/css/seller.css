@@ -1359,67 +1359,120 @@ body.seller {
   margin-bottom: 14px;
 }
 
-/* the five stars a seller leaves on a matched product */
-.s-rate-item {
+/* The star rating card: the product, what it is worth, and three rows of
+   stars, then the order goes in. */
+.s-rate-card { padding: 0; overflow: hidden; text-align: left; }
+
+.s-rate-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  margin: 0 0 12px;
-  background: var(--s-teal-soft);
-  border-radius: 12px;
-  text-align: left;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
 }
-.s-rate-item .thumb { font-size: 24px; line-height: 1; }
-.s-rate-item .name { font-size: 14px; font-weight: 600; color: var(--s-ink); }
+.s-rate-head h3 { margin: 0; font-size: 16px; font-weight: 700; color: var(--s-ink); }
+.s-rate-x {
+  min-width: 34px;
+  min-height: 34px;
+  border: 0;
+  background: none;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--s-muted);
+  cursor: pointer;
+}
 
-/* what the order is worth, shown above the stars */
+.s-rate-shot {
+  display: grid;
+  place-items: center;
+  height: 190px;
+  margin: 0 16px;
+  border-radius: 10px;
+  background: #f4f5f7;
+  font-size: 72px;
+  line-height: 1;
+}
+.s-rate-name {
+  margin: 10px 16px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #55555f;
+}
+
 .s-rate-lines {
-  margin: 0 0 14px;
-  padding: 10px 12px;
+  margin: 0 16px 14px;
+  padding: 8px 12px;
   border: 1px solid var(--s-line);
-  border-radius: 12px;
-  text-align: left;
+  border-radius: 10px;
 }
 .s-rate-lines > div {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  padding: 4px 0;
-  font-size: 13.5px;
+  padding: 3px 0;
+  font-size: 13px;
 }
 .s-rate-lines .k { color: var(--s-muted); }
 .s-rate-lines .v { font-weight: 700; color: var(--s-ink); }
 .s-rate-lines .v.money { color: var(--s-teal); }
 
-.s-stars {
+.s-rate-row {
   display: flex;
-  justify-content: center;
-  gap: 6px;
-  margin: 0 0 6px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 16px;
 }
+.s-rate-row .lb { font-size: 13px; color: #55555f; max-width: 40%; }
+
+.s-stars { display: flex; gap: 2px; }
 .s-star {
-  min-width: 44px;
-  min-height: 44px;
+  min-width: 30px;
+  min-height: 34px;
   padding: 0;
   border: 0;
   background: none;
-  font-size: 32px;
+  font-size: 22px;
   line-height: 1;
-  color: #d8d8de;
+  color: #dcdce3;
   cursor: pointer;
   transition: color .12s, transform .12s;
 }
 .s-star.on { color: #f5b301; }
 .s-star:active { transform: scale(.9); }
 
-.s-rate-word {
-  margin: 0 0 14px;
-  min-height: 20px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--s-teal);
+.s-rate-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 16px 16px;
 }
+.s-rate-cancel {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .3px;
+  color: #55555f;
+  cursor: pointer;
+}
+.s-rate-send {
+  min-height: 40px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--s-teal);
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .3px;
+  cursor: pointer;
+}
+.s-rate-send[disabled] { opacity: .5; cursor: not-allowed; }
 
 .s-order-rating {
   display: flex;

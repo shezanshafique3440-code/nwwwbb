@@ -1440,14 +1440,19 @@ function sellerApi(req, res, me, parts, method, body) {
     const order = q.sellerOrderById.get(id, me.id);
     if (!order) return send(res, 404, { error: 'Order not found' });
 
-    const stars = Math.round(Number(body.rating || 0));
-    if (!(stars >= 1 && stars <= 5)) return send(res, 400, { error: 'Give the product 1 to 5 stars' });
+    /* the star rating is given as three scores at once: how well the
+       description matched, the logistics, and the service attitude */
+    const given = Array.isArray(body.ratings)
+      ? body.ratings
+      : [body.description, body.logistics, body.service];
+    const stars = given.map(function (n) { return Math.round(Number(n || 0)); });
 
-    /* three scores are asked for; this one goes in the next empty slot */
-    const slot = ['rating', 'rating2', 'rating3'].filter(function (c) { return !order[c]; })[0];
-    if (!slot) return send(res, 400, { error: 'This order already has all three ratings' });
+    if (stars.length !== 3 || stars.some(function (n) { return !(n >= 1 && n <= 5); })) {
+      return send(res, 400, { error: 'Give all three ratings, 1 to 5 stars each' });
+    }
 
-    db.prepare('UPDATE seller_orders SET ' + slot + ' = ? WHERE id = ?').run(stars, id);
+    db.prepare('UPDATE seller_orders SET rating = ?, rating2 = ?, rating3 = ? WHERE id = ?')
+      .run(stars[0], stars[1], stars[2], id);
     return send(res, 200, { order: mapSellerOrder(q.sellerOrderById.get(id, me.id)) });
   }
 
