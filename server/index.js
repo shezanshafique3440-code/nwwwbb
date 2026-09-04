@@ -1074,7 +1074,10 @@ function sellerSummary(me) {
     todayCommission: q.sellerCommissionOn.get(me.id, today()).total,
     totalCommission: q.sellerCommission.get(me.id).total,
     completed: q.sellerCount.get(me.id, 'Completed').n,
-    pending: q.sellerCount.get(me.id, 'Pending').n,
+    /* a frozen order is still an order they have open and have not finished,
+       so it counts here — otherwise the card reads "pending 0" while the gap
+       note underneath asks them to top it up */
+    pending: q.sellerCount.get(me.id, 'Pending').n + frozen.length,
     frozen: frozen.length,
     frozenShortfall: shortfall > 0 ? shortfall : 0,
     /* what the wallet has to make up before the frozen order can go through */
