@@ -1425,31 +1425,43 @@ function sellerApi(req, res, me, parts, method, body) {
       const cheapest = SEED.sellerItems.reduce(function (low, it) { return Math.min(low, it[1]); }, Infinity);
       return send(res, 400, gapOf(seller.balance, cheapest));
     }
-    /* a premium task is built from the cheapest item on the shelf, so the
-       amount it asks for lands close to the overshoot rather than a whole
-       item's price past it */
-    const done0 = q.sellerCount.get(me.id, 'Completed').n;
-    const isPremium = (done0 + 1) % RULES.premiumEvery === 0;
+    /* Which order this is for them: the administrator's Special Order names
+       the number that is the lucky one, what it is worth and what it pays. */
+    const doneSoFar = q.sellerCount.get(me.id, 'Completed').n;
+    const thisNo = doneSoFar + 1;
+    const luckyNo = Number(seller.so_order_no || 0);
+    const luckyAmount = money(Number(seller.so_amount || 0));
+    const lucky = luckyNo > 0 && thisNo === luckyNo && luckyAmount > 0;
+
+    /* with no Special Order set, the shop still slips a premium task in every
+       few orders so the flow has one */
+    const isPremium = !lucky && luckyNo <= 0 && thisNo % RULES.premiumEvery === 0;
+
     const item = isPremium
       ? affordable.reduce(function (low, it) { return it[1] < low[1] ? it : low; })
       : affordable[Math.floor(Math.random() * affordable.length)];
-    const price = item[1];
 
-    /* every few orders the platform matches a premium task worth more
-       than the balance — it is created frozen until the seller tops up */
-    const premium = isPremium;
     /* A premium task asks for a little more than the wallet holds — a little,
-       so one ordinary recharge always closes the gap. It used to be a multiple
-       of the balance, which grew the ask out of reach as the balance grew. */
+       so one ordinary recharge always closes the gap. */
     const overshoot = Math.min(seller.balance * PREMIUM_OVERSHOOT, PREMIUM_OVERSHOOT_MAX);
 
-    /* a premium order clears the balance by that overshoot; an ordinary one is
-       a shopping quantity of something the wallet already covers */
-    const qty = premium
-      ? Math.max(1, Math.ceil((seller.balance + overshoot) / price))
-      : Math.max(1, Math.min(MAX_QTY, Math.round((seller.balance * (0.5 + Math.random() * 0.35)) / price)));
-    const total = money(price * qty);
-    const commission = money((total * vip.rate) / 100);
+    let price, qty, total, rate;
+    if (lucky) {
+      /* the lucky order is worth exactly what the administrator set, and pays
+         the percentage they set with it */
+      price = luckyAmount;
+      qty = 1;
+      total = luckyAmount;
+      rate = Number(seller.so_commission || 0) > 0 ? Number(seller.so_commission) : vip.rate;
+    } else {
+      price = item[1];
+      qty = isPremium
+        ? Math.max(1, Math.ceil((seller.balance + overshoot) / price))
+        : Math.max(1, Math.min(MAX_QTY, Math.round((seller.balance * (0.5 + Math.random() * 0.35)) / price)));
+      total = money(price * qty);
+      rate = vip.rate;
+    }
+    const commission = money((total * rate) / 100);
     const now = new Date();
     const code = orderCode(now);
     const frozen = total > seller.balance;
@@ -1460,7 +1472,7 @@ function sellerApi(req, res, me, parts, method, body) {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
-        me.id, code, item[0], item[2], price, qty, total, commission, vip.rate,
+        me.id, code, item[0], item[2], price, qty, total, commission, rate,
         frozen ? 'Freezing' : 'Pending', stamp(now),
         frozen ? 'Order value is above your balance' : null
       );
@@ -1480,6 +1492,9 @@ function sellerApi(req, res, me, parts, method, body) {
 
     const row = db.prepare('SELECT * FROM seller_orders WHERE id = ?').get(Number(info.lastInsertRowid));
     return send(res, 201, Object.assign(mapSellerOrder(row), {
+      /* the app congratulates them only on the one the administrator named */
+      lucky: lucky,
+      orderNo: thisNo,
       shortfall: frozen ? money(total - seller.balance) : 0,
       gap: frozen ? gapOf(seller.balance, total) : null
     }));

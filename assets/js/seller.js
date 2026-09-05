@@ -162,6 +162,122 @@
     return notice('Your account balance is not enough, there is a gap of ' + money(g.gap), done);
   }
 
+  /* Withdrawing without an account on file is the same conversation every
+     time: what is missing, and the two steps in Wallet address that fix it. */
+  function payoutDialog(pay) {
+    document.querySelectorAll('.s-modal').forEach(function (m) { m.remove(); });
+
+    const wrap = document.createElement('div');
+    wrap.className = 's-modal';
+    wrap.innerHTML =
+      '<div class="s-modal-card" role="alertdialog" aria-labelledby="payTitle">' +
+      '<h3 id="payTitle">' + esc(pay.title || 'Add a bank account first') + '</h3>' +
+      '<p class="line">' + esc(pay.error) + '</p>' +
+      '<ol class="s-payout-steps">' +
+      '<li>Open <b>Wallet address</b>.</li>' +
+      '<li>Select your <b>payment method</b>.</li>' +
+      '<li>Add the account and save it.</li>' +
+      '</ol>' +
+      '<a class="s-btn s-modal-go" href="wallet.html?add=1">Go to Wallet address</a>' +
+      '<button class="s-modal-close" type="button">Close</button>' +
+      '</div>';
+    document.body.appendChild(wrap);
+
+    const shut = function () { wrap.remove(); };
+    wrap.querySelector('.s-modal-close').addEventListener('click', shut);
+    wrap.addEventListener('click', function (e) { if (e.target === wrap) shut(); });
+    document.addEventListener('keydown', function esc2(e) {
+      if (e.key === 'Escape') { shut(); document.removeEventListener('keydown', esc2); }
+    });
+    return wrap;
+  }
+
+  /* The star rating the shop asks for on every order: how well the
+     description matched, the logistics, and the service attitude — then the
+     order goes in. */
+  const RATE_ROWS = [
+    ['description', 'Description matches'],
+    ['logistics', 'Logistics services'],
+    ['service', 'Service attitude']
+  ];
+
+  function rateDialog(order, done) {
+    document.querySelectorAll('.s-modal').forEach(function (m) { m.remove(); });
+    const scores = { description: 0, logistics: 0, service: 0 };
+
+    const wrap = document.createElement('div');
+    wrap.className = 's-modal';
+    wrap.innerHTML =
+      '<div class="s-modal-card s-rate-card" role="dialog" aria-labelledby="rateTitle">' +
+      '<div class="s-rate-head"><h3 id="rateTitle">Star rating</h3>' +
+      '<button class="s-rate-x" type="button" aria-label="Close">\u00D7</button></div>' +
+      '<div class="s-rate-shot">' + (order.image || '\u{1F4E6}') + '</div>' +
+      '<p class="s-rate-name">' + esc(order.product) + '</p>' +
+      '<div class="s-rate-lines">' +
+      '<div><span class="k">Order price</span><span class="v">$' + money(order.total) + '</span></div>' +
+      '<div><span class="k">Order commission</span><span class="v money">$' + money(order.commission) + '</span></div>' +
+      '</div>' +
+      RATE_ROWS.map(function (r) {
+        return (
+          '<div class="s-rate-row"><span class="lb">' + r[1] + '</span>' +
+          '<span class="s-stars" role="radiogroup" aria-label="' + r[1] + '" data-row="' + r[0] + '">' +
+          [1, 2, 3, 4, 5].map(function (n) {
+            return '<button type="button" class="s-star" data-star="' + n + '" role="radio" ' +
+              'aria-checked="false" aria-label="' + n + ' star' + (n > 1 ? 's' : '') + '">\u2605</button>';
+          }).join('') +
+          '</span></div>'
+        );
+      }).join('') +
+      '<div class="s-rate-foot">' +
+      '<button class="s-rate-cancel" type="button">CANCEL</button>' +
+      '<button class="s-rate-send" type="button" disabled>SUBMIT ORDER</button>' +
+      '</div></div>';
+    document.body.appendChild(wrap);
+
+    const send = wrap.querySelector('.s-rate-send');
+    const ready = function () {
+      return RATE_ROWS.every(function (r) { return scores[r[0]] > 0; });
+    };
+
+    wrap.querySelectorAll('[data-row]').forEach(function (group) {
+      const key = group.getAttribute('data-row');
+      group.querySelectorAll('.s-star').forEach(function (b) {
+        b.addEventListener('click', function () {
+          scores[key] = Number(b.getAttribute('data-star'));
+          group.querySelectorAll('.s-star').forEach(function (x) {
+            const n = Number(x.getAttribute('data-star'));
+            x.classList.toggle('on', n <= scores[key]);
+            x.setAttribute('aria-checked', n === scores[key] ? 'true' : 'false');
+          });
+          send.disabled = !ready();
+        });
+      });
+    });
+
+    const shut = function (ok) { wrap.remove(); if (done) done(ok === true); };
+    wrap.querySelector('.s-rate-x').addEventListener('click', function () { shut(false); });
+    wrap.querySelector('.s-rate-cancel').addEventListener('click', function () { shut(false); });
+
+    /* the button says submit order, so it rates and submits in one go */
+    send.addEventListener('click', function () {
+      send.disabled = true;
+      send.textContent = 'SUBMITTING…';
+      api('POST', '/seller/orders/' + order.id + '/rate', scores)
+        .then(function () { return api('POST', '/seller/orders/' + order.id + '/submit'); })
+        .then(function (r) {
+          toast('Order submitted — ' + money(r.order.commission) + ' commission added');
+          shut(true);
+        })
+        .catch(function (err) {
+          const shown = reportGap(err);
+          if (!shown) toast(err.message);
+          shut(false);
+        });
+    });
+    return wrap;
+  }
+
+
   /* an error carrying a gap gets the dialog; anything else is just a toast */
   function reportGap(err) {
     const d = err && err.data;
@@ -472,22 +588,27 @@
         btn.textContent = 'matching an order…';
         api('POST', '/seller/grab')
           .then(function (order) {
-            /* a premium task lands frozen: name the gap before moving on */
-            if (order.status === 'Freezing' && order.gap) {
-              gapDialog(order.gap, function () {
-                window.location.href = 'orders.html?status=freezing';
-              });
-              btn.disabled = false;
-              btn.textContent = 'start grabbing orders';
-              return;
-            }
-            /* the shop congratulates them on the match, then asks for the
-               score on it before the order goes in */
-            notice('Congratulations on getting the lucky order', function () {
+            btn.disabled = false;
+            btn.textContent = 'start grabbing orders';
+
+            /* what happens next, once the notices are out of the way: a
+               frozen order waits for the gap, a live one is rated and sent */
+            const carryOn = function () {
+              if (order.status === 'Freezing' && order.gap) {
+                gapDialog(order.gap, function () {
+                  window.location.href = 'orders.html?status=freezing';
+                });
+                return;
+              }
               rateDialog(order, function () {
                 window.location.href = 'orders.html?status=pending';
               });
-            });
+            };
+
+            /* the shop congratulates them only on the order the administrator
+               marked as the lucky one */
+            if (order.lucky) notice('Congratulations you get a lucky order', carryOn);
+            else carryOn();
             btn.disabled = false;
             btn.textContent = 'start grabbing orders';
           })
