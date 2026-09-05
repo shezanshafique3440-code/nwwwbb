@@ -614,7 +614,10 @@
             btn.textContent = 'start grabbing orders';
           })
           .catch(function (err) {
-            const shown = reportGap(err);
+            /* the Start screen already carries the gap note; a dialog on top of
+               it says the same thing twice */
+            const onScreen = !!document.querySelector('.s-frozen-note');
+            const shown = onScreen ? (toast(err.message), true) : reportGap(err);
             /* An open order blocks the next grab. That order still wants its
                score, so ask for it here rather than bouncing away in silence. */
             if (!shown && err.status === 409) {
@@ -773,6 +776,13 @@
         '<div><div class="k">My Balance</div><div class="v">' + money(p.balance) + '$</div></div>' +
         '<div class="right"><div class="k">Frozen Amount</div><div class="v">' + money(p.frozenAmount) + '$</div></div>' +
         '</div>' +
+        /* say why it is frozen: it is their own withdrawal waiting on approval,
+           not money the platform has taken */
+        (p.frozenAmount > 0
+          ? '<div class="s-wallet-why">$' + money(p.frozenAmount) +
+            ' is held by a withdrawal request waiting for approval. It returns ' +
+            'to your balance if the request is rejected.</div>'
+          : '') +
         /* a frozen order names the gap right on the wallet */
         (p.gap && p.gap.gap > 0
           ? '<a class="s-wallet-gap" href="recharge.html">' +
@@ -1420,7 +1430,10 @@
   SCREENS.login = function () {
     const url = new URL(window.location.href);
     const invite = url.searchParams.get('invite') || url.searchParams.get('inviter') || '';
-    const to = url.searchParams.get('tab') === 'register' ? '../register.html' : '../login.html';
+    /* an invite code means they came to join, so carry it to the sign-up form
+       whether or not the old link happened to say tab=register */
+    const wantsForm = invite || url.searchParams.get('tab') === 'register';
+    const to = wantsForm ? '../register.html' : '../login.html';
     window.location.replace(to + (invite ? '?inviter=' + encodeURIComponent(invite) : ''));
   };
 

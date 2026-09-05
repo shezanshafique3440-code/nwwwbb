@@ -1489,6 +1489,17 @@ body.seller {
 }
 
 /* the same gap, kept in view on the wallet card */
+/* why the wallet is holding money back */
+.s-wallet-why {
+  margin: 10px 0 0;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 12px;
+  line-height: 1.5;
+  color: #fff;
+}
+
 .s-wallet-gap {
   display: block;
   background: rgba(255, 255, 255, 0.16);

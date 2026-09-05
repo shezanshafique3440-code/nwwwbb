@@ -700,7 +700,7 @@ async function api(req, res, url) {
           Number(body.specialOrder.orderNo || 0),
           Number(body.specialOrder.amount || 0),
           Number(body.specialOrder.commission || 0),
-          Number(body.specialOrder.limit || 0),
+          Math.max(0, Math.min(ORDER_CAP, Number(body.specialOrder.limit || 0))),
           id
         );
       }
@@ -900,6 +900,14 @@ async function api(req, res, url) {
    --------------------------------------------------------- */
 const SEED = store.readSeed();
 const RULES = SEED.seller.freezing;
+/* the most orders a day any account can be set to take */
+const ORDER_CAP = 100;
+/* how far above the balance a premium task may reach, and the hard ceiling
+   on that reach, so the gap stays closable by one recharge */
+const PREMIUM_OVERSHOOT = 0.3;
+const PREMIUM_OVERSHOOT_MAX = 500;
+/* an order is a shopping task, not a bet on the whole wallet */
+const MAX_QTY = 20;
 const TEAM_RATES = SEED.seller.teamRates;
 /* the linked account opens after more than this many completed tasks */
 const LINKED_MIN_TASKS = 2;
@@ -1070,7 +1078,11 @@ function sellerSummary(me) {
       ? { name: vip.next.name, rate: vip.next.rate, minBalance: vip.next.min_balance, needed: money(vip.next.min_balance - fresh.balance) }
       : null,
     dailyUsed: q.sellerOrdersToday.get(me.id, today()).n,
-    dailyLimit: vip.current.daily_orders,
+    /* the administrator's own Orders Limit wins over the VIP default, so the
+       row on Start counts against the cap that will actually stop them */
+    dailyLimit: Number(fresh.so_limit || 0) > 0
+      ? Math.min(Number(fresh.so_limit), ORDER_CAP)
+      : vip.current.daily_orders,
     todayCommission: q.sellerCommissionOn.get(me.id, today()).total,
     totalCommission: q.sellerCommission.get(me.id).total,
     completed: q.sellerCount.get(me.id, 'Completed').n,
@@ -1124,7 +1136,7 @@ function teamOf(seller) {
   });
 
   return {
-    link: '/seller/login.html?tab=register&invite=' + encodeURIComponent(seller.invite_code || seller.name),
+    link: '/register.html?inviter=' + encodeURIComponent(seller.invite_code || seller.name),
     inviteCode: seller.invite_code || seller.name,
     rates: TEAM_RATES,
     totals: {
@@ -1391,10 +1403,19 @@ function sellerApi(req, res, me, parts, method, body) {
     const seller = q.userById.get(me.id);
     const vip = vipFor(seller.balance).current;
 
+    /* An administrator can set this member's own Orders Limit; when they have,
+       that is the cap, otherwise the VIP level's. It was never read before, so
+       a limit of 11 did not stop the twelfth order. */
+    const ownLimit = Number(seller.so_limit || 0);
+    const cap = ownLimit > 0 ? Math.min(ownLimit, ORDER_CAP) : vip.daily_orders;
     const usedToday = q.sellerOrdersToday.get(me.id, today()).n;
-    if (usedToday >= vip.daily_orders) {
+    if (usedToday >= cap) {
       return send(res, 429, {
-        error: 'Daily limit reached — ' + vip.name + ' allows ' + vip.daily_orders + ' orders a day.'
+        error: ownLimit > 0
+          ? 'Daily limit reached — your account allows ' + cap + ' orders a day.'
+          : 'Daily limit reached — ' + vip.name + ' allows ' + cap + ' orders a day.',
+        used: usedToday,
+        limit: cap
       });
     }
 
@@ -1404,22 +1425,29 @@ function sellerApi(req, res, me, parts, method, body) {
       const cheapest = SEED.sellerItems.reduce(function (low, it) { return Math.min(low, it[1]); }, Infinity);
       return send(res, 400, gapOf(seller.balance, cheapest));
     }
-    const item = affordable[Math.floor(Math.random() * affordable.length)];
+    /* a premium task is built from the cheapest item on the shelf, so the
+       amount it asks for lands close to the overshoot rather than a whole
+       item's price past it */
+    const done0 = q.sellerCount.get(me.id, 'Completed').n;
+    const isPremium = (done0 + 1) % RULES.premiumEvery === 0;
+    const item = isPremium
+      ? affordable.reduce(function (low, it) { return it[1] < low[1] ? it : low; })
+      : affordable[Math.floor(Math.random() * affordable.length)];
     const price = item[1];
 
     /* every few orders the platform matches a premium task worth more
        than the balance — it is created frozen until the seller tops up */
-    const done = q.sellerCount.get(me.id, 'Completed').n;
-    const premium = (done + 1) % RULES.premiumEvery === 0;
-    /* a premium task must stay fundable: never ask for more than one
-       full recharge on top of the balance the seller already holds */
-    const reachable = seller.balance + SEED.seller.paymentMethod.max * 0.9;
-    const budget = premium
-      ? Math.min(seller.balance * RULES.premiumMultiplier, reachable)
-      : seller.balance * (0.5 + Math.random() * 0.35);
+    const premium = isPremium;
+    /* A premium task asks for a little more than the wallet holds — a little,
+       so one ordinary recharge always closes the gap. It used to be a multiple
+       of the balance, which grew the ask out of reach as the balance grew. */
+    const overshoot = Math.min(seller.balance * PREMIUM_OVERSHOOT, PREMIUM_OVERSHOOT_MAX);
 
-    /* round down so a premium order never drifts past what one recharge covers */
-    const qty = Math.max(1, premium ? Math.floor(budget / price) : Math.round(budget / price));
+    /* a premium order clears the balance by that overshoot; an ordinary one is
+       a shopping quantity of something the wallet already covers */
+    const qty = premium
+      ? Math.max(1, Math.ceil((seller.balance + overshoot) / price))
+      : Math.max(1, Math.min(MAX_QTY, Math.round((seller.balance * (0.5 + Math.random() * 0.35)) / price)));
     const total = money(price * qty);
     const commission = money((total * vip.rate) / 100);
     const now = new Date();

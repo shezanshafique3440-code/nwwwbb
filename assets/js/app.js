@@ -1209,7 +1209,7 @@
               { name: 'orderNo', label: 'Order no', type: 'number' },
               { name: 'amount', label: 'Amount ($)', type: 'number', step: '0.01' },
               { name: 'commission', label: 'Commission percentage', type: 'number', step: '0.1' },
-              { name: 'limit', label: 'Orders limit', type: 'number' }
+              { name: 'limit', label: 'Orders limit (0 = use the VIP level, up to 100)', type: 'number', min: '0', max: '100' }
             ],
             bank: [
               { name: 'method', label: 'Method', type: 'select', options: ['', 'Bank Transfer', 'USDT (TRC20)', 'UPI'] },

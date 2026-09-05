@@ -192,7 +192,7 @@
 
   /* the invite link the navbar shows is the very one it opens */
   function inviteHref() {
-    return 'seller/login.html?tab=register&invite=' + encodeURIComponent(DB.admin.name);
+    return 'register.html?inviter=' + encodeURIComponent(DB.admin.name);
   }
   function inviteUrl() {
     return new URL(inviteHref(), window.location.href).href;
