@@ -456,10 +456,27 @@ function seed() {
     `INSERT INTO seller_orders (id, seller_id, code, product, image, price, qty, total, commission, rate, status, created_at, submitted_at, seeded)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`
   );
+  /* every task a member takes shows on the administrator's Orders, open ones
+     as well as completed, so the seeded ones are mirrored the same way a
+     grabbed one is */
+  const mirrorOrder = db.prepare(
+    `INSERT INTO orders (code, user, customer_code, product, sku, image, price, qty, total,
+       shipping, discount, commission, status, date, time, rate_desc, rate_logistics, rate_service)
+     VALUES (?, ?, ?, ?, '', ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, 0, 0, 0)`
+  );
+  const sellerById = {};
+  S.sellers.forEach(function (u) { sellerById[u.id] = u; });
+
   S.sellerOrders.forEach(function (o) {
     insSellerOrder.run(
       o.id, o.sellerId, o.code, o.product, o.image, o.price, o.qty, o.total,
       o.commission, o.rate, o.status, o.createdAt, o.status === 'Completed' ? o.createdAt : null
+    );
+    const owner = sellerById[o.sellerId] || {};
+    const at = String(o.createdAt || '').split(' ');
+    mirrorOrder.run(
+      o.code, owner.name || '', owner.phone || '', o.product, o.image,
+      o.price, o.qty, o.total, o.commission, o.status, at[0] || '', at[1] || ''
     );
   });
 

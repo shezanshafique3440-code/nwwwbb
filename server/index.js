@@ -1465,6 +1465,19 @@ function sellerApi(req, res, me, parts, method, body) {
         frozen ? 'Order value is above your balance' : null
       );
 
+    /* the administrator sees the order the moment it is taken, not only once
+       it is submitted — so a member's open orders show alongside their
+       completed ones */
+    const at = stamp(now).split(' ');
+    db.prepare(
+      `INSERT INTO orders (code, user, customer_code, product, sku, image, price, qty, total,
+         shipping, discount, commission, status, date, time, rate_desc, rate_logistics, rate_service)
+       VALUES (?, ?, ?, ?, '', ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, 0, 0, 0)`
+    ).run(
+      code, seller.name, seller.phone || '', item[0], item[2],
+      price, qty, total, commission, frozen ? 'Freezing' : 'Pending', at[0], at[1] || ''
+    );
+
     const row = db.prepare('SELECT * FROM seller_orders WHERE id = ?').get(Number(info.lastInsertRowid));
     return send(res, 201, Object.assign(mapSellerOrder(row), {
       shortfall: frozen ? money(total - seller.balance) : 0,
@@ -1509,19 +1522,27 @@ function sellerApi(req, res, me, parts, method, body) {
     db.prepare('UPDATE users SET balance = balance + ? WHERE id = ?').run(order.commission, me.id);
     store.addRevenue(order.total);
 
-    /* A submitted order is a real sale, so it joins the orders the
-       administrator works from — carrying the member's three ratings. */
+    /* the row the administrator has been watching since the grab now closes,
+       carrying the member's three ratings */
     const buyer = q.userById.get(me.id);
     const at = stamp(now).split(' ');
-    db.prepare(
-      `INSERT INTO orders (code, user, customer_code, product, sku, image, price, qty, total,
-         shipping, discount, commission, status, date, time, rate_desc, rate_logistics, rate_service)
-       VALUES (?, ?, ?, ?, '', ?, ?, ?, ?, 0, 0, ?, 'Completed', ?, ?, ?, ?, ?)`
-    ).run(
-      order.code, buyer.name, buyer.phone || '', order.product, order.image,
-      order.price, order.qty, order.total, order.commission,
-      at[0], at[1] || '', order.rating || 0, order.rating2 || 0, order.rating3 || 0
-    );
+    const marked = db.prepare(
+      `UPDATE orders SET status = 'Completed', date = ?, time = ?,
+         rate_desc = ?, rate_logistics = ?, rate_service = ? WHERE code = ?`
+    ).run(at[0], at[1] || '', order.rating || 0, order.rating2 || 0, order.rating3 || 0, order.code);
+
+    /* an order seeded before this build has no row of its own yet */
+    if (!marked.changes) {
+      db.prepare(
+        `INSERT INTO orders (code, user, customer_code, product, sku, image, price, qty, total,
+           shipping, discount, commission, status, date, time, rate_desc, rate_logistics, rate_service)
+         VALUES (?, ?, ?, ?, '', ?, ?, ?, ?, 0, 0, ?, 'Completed', ?, ?, ?, ?, ?)`
+      ).run(
+        order.code, buyer.name, buyer.phone || '', order.product, order.image,
+        order.price, order.qty, order.total, order.commission,
+        at[0], at[1] || '', order.rating || 0, order.rating2 || 0, order.rating3 || 0
+      );
+    }
 
     return send(res, 200, {
       order: mapSellerOrder(q.sellerOrderById.get(id, me.id)),

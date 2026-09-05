@@ -138,146 +138,28 @@
   /* The gap dialog. Whenever the balance falls short the seller is told the
      three numbers that matter — what they hold, what the order needs, and the
      difference — with a way straight to the recharge screen. */
-  function gapDialog(g) {
-    document.querySelectorAll('.s-modal').forEach(function (m) { m.remove(); });
+  /* A plain notice with an OK under it — the shop says the short things
+     this way: a gap, or a lucky order. */
+  function notice(message, done) {
+    document.querySelectorAll('.s-notice').forEach(function (n) { n.remove(); });
 
     const wrap = document.createElement('div');
-    wrap.className = 's-modal';
+    wrap.className = 's-notice';
     wrap.innerHTML =
-      '<div class="s-modal-card" role="alertdialog" aria-labelledby="gapTitle">' +
-      '<h3 id="gapTitle">Insufficient Funds</h3>' +
-      '<p class="line">Sir your balance is <b>$' + money(g.balance) + '</b> but required amount is ' +
-      '<b>$' + money(g.required) + '</b></p>' +
-      '<div class="s-gap-figure"><span class="k">Your gap</span>' +
-      '<span class="v">$' + money(g.gap) + '</span></div>' +
-      '<p class="line">Add <b>$' + money(g.gap) + '</b> and complete the gap first.</p>' +
-      '<a class="s-btn s-modal-go" href="recharge.html">Recharge now</a>' +
-      '<button class="s-modal-close" type="button">Close</button>' +
+      '<div class="s-notice-card" role="alertdialog">' +
+      '<p class="s-notice-text">' + esc(message) + '</p>' +
+      '<button class="s-notice-ok" type="button">OK</button>' +
       '</div>';
     document.body.appendChild(wrap);
 
-    const shut = function () { wrap.remove(); };
-    wrap.querySelector('.s-modal-close').addEventListener('click', shut);
-    wrap.addEventListener('click', function (e) { if (e.target === wrap) shut(); });
-    document.addEventListener('keydown', function esc(e) {
-      if (e.key === 'Escape') { shut(); document.removeEventListener('keydown', esc); }
-    });
+    const shut = function () { wrap.remove(); if (done) done(); };
+    wrap.querySelector('.s-notice-ok').addEventListener('click', shut);
     return wrap;
   }
 
-  /* Withdrawing without an account on file is the same conversation every
-     time: what is missing, and the two steps in Wallet address that fix it. */
-  function payoutDialog(pay) {
-    document.querySelectorAll('.s-modal').forEach(function (m) { m.remove(); });
-
-    const wrap = document.createElement('div');
-    wrap.className = 's-modal';
-    wrap.innerHTML =
-      '<div class="s-modal-card" role="alertdialog" aria-labelledby="payTitle">' +
-      '<h3 id="payTitle">' + esc(pay.title || 'Add a bank account first') + '</h3>' +
-      '<p class="line">' + esc(pay.error) + '</p>' +
-      '<ol class="s-payout-steps">' +
-      '<li>Open <b>Wallet address</b>.</li>' +
-      '<li>Select your <b>payment method</b>.</li>' +
-      '<li>Add the account and save it.</li>' +
-      '</ol>' +
-      '<a class="s-btn s-modal-go" href="wallet.html?add=1">Go to Wallet address</a>' +
-      '<button class="s-modal-close" type="button">Close</button>' +
-      '</div>';
-    document.body.appendChild(wrap);
-
-    const shut = function () { wrap.remove(); };
-    wrap.querySelector('.s-modal-close').addEventListener('click', shut);
-    wrap.addEventListener('click', function (e) { if (e.target === wrap) shut(); });
-    document.addEventListener('keydown', function esc2(e) {
-      if (e.key === 'Escape') { shut(); document.removeEventListener('keydown', esc2); }
-    });
-    return wrap;
-  }
-
-  /* The star rating the shop asks for on every order: how well the
-     description matched, the logistics, and the service attitude — then the
-     order goes in. */
-  const RATE_ROWS = [
-    ['description', 'Description matches'],
-    ['logistics', 'Logistics services'],
-    ['service', 'Service attitude']
-  ];
-
-  function rateDialog(order, done) {
-    document.querySelectorAll('.s-modal').forEach(function (m) { m.remove(); });
-    const scores = { description: 0, logistics: 0, service: 0 };
-
-    const wrap = document.createElement('div');
-    wrap.className = 's-modal';
-    wrap.innerHTML =
-      '<div class="s-modal-card s-rate-card" role="dialog" aria-labelledby="rateTitle">' +
-      '<div class="s-rate-head"><h3 id="rateTitle">Star rating</h3>' +
-      '<button class="s-rate-x" type="button" aria-label="Close">\u00D7</button></div>' +
-      '<div class="s-rate-shot">' + (order.image || '\u{1F4E6}') + '</div>' +
-      '<p class="s-rate-name">' + esc(order.product) + '</p>' +
-      '<div class="s-rate-lines">' +
-      '<div><span class="k">Order price</span><span class="v">$' + money(order.total) + '</span></div>' +
-      '<div><span class="k">Order commission</span><span class="v money">$' + money(order.commission) + '</span></div>' +
-      '</div>' +
-      RATE_ROWS.map(function (r) {
-        return (
-          '<div class="s-rate-row"><span class="lb">' + r[1] + '</span>' +
-          '<span class="s-stars" role="radiogroup" aria-label="' + r[1] + '" data-row="' + r[0] + '">' +
-          [1, 2, 3, 4, 5].map(function (n) {
-            return '<button type="button" class="s-star" data-star="' + n + '" role="radio" ' +
-              'aria-checked="false" aria-label="' + n + ' star' + (n > 1 ? 's' : '') + '">\u2605</button>';
-          }).join('') +
-          '</span></div>'
-        );
-      }).join('') +
-      '<div class="s-rate-foot">' +
-      '<button class="s-rate-cancel" type="button">CANCEL</button>' +
-      '<button class="s-rate-send" type="button" disabled>SUBMIT ORDER</button>' +
-      '</div></div>';
-    document.body.appendChild(wrap);
-
-    const send = wrap.querySelector('.s-rate-send');
-    const ready = function () {
-      return RATE_ROWS.every(function (r) { return scores[r[0]] > 0; });
-    };
-
-    wrap.querySelectorAll('[data-row]').forEach(function (group) {
-      const key = group.getAttribute('data-row');
-      group.querySelectorAll('.s-star').forEach(function (b) {
-        b.addEventListener('click', function () {
-          scores[key] = Number(b.getAttribute('data-star'));
-          group.querySelectorAll('.s-star').forEach(function (x) {
-            const n = Number(x.getAttribute('data-star'));
-            x.classList.toggle('on', n <= scores[key]);
-            x.setAttribute('aria-checked', n === scores[key] ? 'true' : 'false');
-          });
-          send.disabled = !ready();
-        });
-      });
-    });
-
-    const shut = function (ok) { wrap.remove(); if (done) done(ok === true); };
-    wrap.querySelector('.s-rate-x').addEventListener('click', function () { shut(false); });
-    wrap.querySelector('.s-rate-cancel').addEventListener('click', function () { shut(false); });
-
-    /* the button says submit order, so it rates and submits in one go */
-    send.addEventListener('click', function () {
-      send.disabled = true;
-      send.textContent = 'SUBMITTING…';
-      api('POST', '/seller/orders/' + order.id + '/rate', scores)
-        .then(function () { return api('POST', '/seller/orders/' + order.id + '/submit'); })
-        .then(function (r) {
-          toast('Order submitted — ' + money(r.order.commission) + ' commission added');
-          shut(true);
-        })
-        .catch(function (err) {
-          const shown = reportGap(err);
-          if (!shown) toast(err.message);
-          shut(false);
-        });
-    });
-    return wrap;
+  /* the gap, said the way the shop says it */
+  function gapDialog(g, done) {
+    return notice('Your account balance is not enough, there is a gap of ' + money(g.gap), done);
   }
 
   /* an error carrying a gap gets the dialog; anything else is just a toast */
@@ -575,11 +457,6 @@
         '<div><div class="k">completed</div><div class="v">' + s.completed + '</div></div>' +
         '<div><div class="k">pending</div><div class="v">' + s.pending + '</div></div>' +
         '</div></div>' +
-        '<a class="s-vip-row" href="vip.html">' +
-        '<span class="s-vip-chip" style="background:' + s.level.color + '">' + s.level.name + '</span>' +
-        '<span class="s-vip-meta">' + s.level.rate + '% commission &middot; ' +
-        s.dailyUsed + '/' + s.dailyLimit + ' orders today</span>' +
-        '<span class="chev">' + svg(I.chevron, 18) + '</span></a>' +
         (s.frozen && s.gap
           ? '<div class="s-frozen-note">Sir your balance is <b>$' + money(s.gap.balance) +
             '</b> but required amount is <b>$' + money(s.gap.required) + '</b>. ' +
@@ -595,20 +472,21 @@
         btn.textContent = 'matching an order…';
         api('POST', '/seller/grab')
           .then(function (order) {
-            /* a premium task lands frozen: show the gap before moving on */
+            /* a premium task lands frozen: name the gap before moving on */
             if (order.status === 'Freezing' && order.gap) {
-              gapDialog(order.gap).querySelector('.s-modal-close').addEventListener('click', function () {
+              gapDialog(order.gap, function () {
                 window.location.href = 'orders.html?status=freezing';
               });
               btn.disabled = false;
               btn.textContent = 'start grabbing orders';
               return;
             }
-            /* the shop asks for the score on what was just matched, then
-               the seller carries on to the order itself */
-            toast('Order ' + order.code + ' matched');
-            rateDialog(order, function () {
-              window.location.href = 'orders.html?status=pending';
+            /* the shop congratulates them on the match, then asks for the
+               score on it before the order goes in */
+            notice('Congratulations on getting the lucky order', function () {
+              rateDialog(order, function () {
+                window.location.href = 'orders.html?status=pending';
+              });
             });
             btn.disabled = false;
             btn.textContent = 'start grabbing orders';
@@ -808,13 +686,21 @@
 
         '<button class="s-btn" data-logout style="margin-top:30px">Logout</button>';
 
-      /* no account on file means the form has nothing to pay into, so the
-         button says so here rather than letting the seller fill it in first */
+      /* Money does not go out while an order is still open, and it has
+         nowhere to go without an account on file. Either way the button
+         says so here rather than letting them fill the form in first. */
       const wBtn = main.querySelector('.acts a[href="withdraw.html"]');
-      if (wBtn && p.payout && !p.payout.ready) {
+      if (wBtn) {
         wBtn.addEventListener('click', function (e) {
-          e.preventDefault();
-          payoutDialog(p.payout);
+          if (p.pending > 0) {
+            e.preventDefault();
+            notice('Complete your pending orders and then apply for withdraw');
+            return;
+          }
+          if (p.payout && !p.payout.ready) {
+            e.preventDefault();
+            payoutDialog(p.payout);
+          }
         });
       }
 
@@ -1006,6 +892,19 @@
     main.innerHTML = '<div class="s-loading">Loading…</div>';
     api('GET', '/seller/profile').then(function (p) {
       const masked = String(p.phone || '').replace(/^(\d{3})\d+(\d{3})$/, '$1****$2') || p.email;
+
+      /* reached straight from the address bar with an order still open */
+      if (p.pending > 0) {
+        main.innerHTML =
+          '<div class="s-form-card">' +
+          '<p class="s-page-title" style="margin-top:0">Finish your orders first</p>' +
+          '<p class="s-form-note" style="text-align:left">Complete your pending orders and ' +
+          'then apply for withdraw.</p>' +
+          '<a class="s-btn s-big-btn" href="orders.html?status=pending">Go to my orders</a>' +
+          '</div>';
+        notice('Complete your pending orders and then apply for withdraw');
+        return;
+      }
 
       /* reached straight from the address bar, with nothing to be paid into */
       if (p.payout && !p.payout.ready) {
