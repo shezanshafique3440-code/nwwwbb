@@ -140,15 +140,18 @@
      difference — with a way straight to the recharge screen. */
   /* A plain notice with an OK under it — the shop says the short things
      this way: a gap, or a lucky order. */
-  function notice(message, done) {
+  function notice(message, done, opts) {
     document.querySelectorAll('.s-notice').forEach(function (n) { n.remove(); });
+    const o = opts || {};
 
     const wrap = document.createElement('div');
-    wrap.className = 's-notice';
+    wrap.className = 's-notice' + (o.tone ? ' is-' + o.tone : '');
     wrap.innerHTML =
       '<div class="s-notice-card" role="alertdialog">' +
+      (o.mark ? '<div class="s-notice-mark">' + o.mark + '</div>' : '') +
+      (o.title ? '<h3 class="s-notice-title">' + esc(o.title) + '</h3>' : '') +
       '<p class="s-notice-text">' + esc(message) + '</p>' +
-      '<button class="s-notice-ok" type="button">OK</button>' +
+      '<button class="s-notice-ok" type="button">' + esc(o.ok || 'OK') + '</button>' +
       '</div>';
     document.body.appendChild(wrap);
 
@@ -157,9 +160,27 @@
     return wrap;
   }
 
-  /* the gap, said the way the shop says it */
+  /* The gap, said the way the shop says it: what is missing, and the one
+     button that closes it. */
   function gapDialog(g, done) {
-    return notice('Your account balance is not enough, there is a gap of ' + money(g.gap), done);
+    return notice(
+      'Your account balance is not enough, there is a gap of $' + money(g.gap),
+      function () {
+        if (done) done();
+        else window.location.href = 'recharge.html';
+      },
+      { tone: 'gap', title: 'Insufficient Funds', ok: 'RECHARGE NOW' }
+    );
+  }
+
+  /* The order the administrator picked out for this member, announced before
+     anything is asked of them. */
+  function luckyDialog(done) {
+    return notice('You got a special order \uD83C\uDF89', done, {
+      tone: 'lucky',
+      mark: '\u2728',
+      title: 'Congratulations!'
+    });
   }
 
   /* Withdrawing without an account on file is the same conversation every
@@ -572,7 +593,14 @@
         '<div class="s-stat-grid two">' +
         '<div><div class="k">completed</div><div class="v">' + s.completed + '</div></div>' +
         '<div><div class="k">pending</div><div class="v">' + s.pending + '</div></div>' +
-        '</div></div>' +
+        '</div>' +
+        /* an open order already names what it will pay, so the special one
+           shows its commission from the moment it lands */
+        (s.pendingCommission > 0
+          ? '<div class="s-stat-pending">Pending commission ' +
+            '<b>$' + money(s.pendingCommission) + '</b></div>'
+          : '') +
+        '</div>' +
         (s.frozen && s.gap
           ? '<div class="s-frozen-note">Sir your balance is <b>$' + money(s.gap.balance) +
             '</b> but required amount is <b>$' + money(s.gap.required) + '</b>. ' +
@@ -594,9 +622,11 @@
             /* what happens next, once the notices are out of the way: a
                frozen order waits for the gap, a live one is rated and sent */
             const carryOn = function () {
-              if (order.status === 'Freezing' && order.gap) {
+              /* an order worth more than the wallet waits on a recharge; it
+                 is sitting in Pending either way */
+              if (order.gap && order.gap.gap > 0) {
                 gapDialog(order.gap, function () {
-                  window.location.href = 'orders.html?status=freezing';
+                  window.location.href = 'recharge.html';
                 });
                 return;
               }
@@ -607,7 +637,7 @@
 
             /* the shop congratulates them only on the order the administrator
                marked as the lucky one */
-            if (order.lucky) notice('Congratulations you get a lucky order', carryOn);
+            if (order.lucky) luckyDialog(carryOn);
             else carryOn();
             btn.disabled = false;
             btn.textContent = 'start grabbing orders';

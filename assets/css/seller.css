@@ -1555,3 +1555,56 @@ body.seller {
 
 /* the invite code reads as the value it is, not as a label */
 .s-invite-code { font-weight: 700; letter-spacing: 0.5px; color: var(--s-ink); }
+
+/* The two dialogs the order flow speaks through: the special order the
+   administrator set aside, and the gap that holds it until a recharge. Both
+   sit on the app's own dark card rather than the plain white notice. */
+.s-notice.is-lucky .s-notice-card,
+.s-notice.is-gap .s-notice-card {
+  max-width: 340px;
+  background: #1e242c;
+  border: 1px solid rgba(226, 195, 122, 0.28);
+  box-shadow: 0 22px 50px rgba(0, 0, 0, 0.45);
+  text-align: center;
+  padding: 26px 22px 20px;
+}
+.s-notice-mark {
+  font-size: 34px;
+  line-height: 1;
+  margin-bottom: 12px;
+}
+.s-notice.is-lucky .s-notice-title,
+.s-notice.is-gap .s-notice-title {
+  margin: 0 0 6px;
+  font-size: 19px;
+  font-weight: 700;
+  color: #e2c37a;
+}
+.s-notice.is-lucky .s-notice-text,
+.s-notice.is-gap .s-notice-text {
+  padding: 0 0 20px;
+  color: #d7dde5;
+  font-size: 14.5px;
+}
+.s-notice.is-lucky .s-notice-ok,
+.s-notice.is-gap .s-notice-ok {
+  border: 0;
+  border-radius: 8px;
+  min-height: 44px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: #241d07;
+  background: #f5c518;
+}
+.s-notice.is-lucky .s-notice-ok:active,
+.s-notice.is-gap .s-notice-ok:active { background: #e0b30f; }
+
+/* what the orders still open will pay once they go through */
+.s-stat-pending {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--s-line);
+  font-size: 13px;
+  color: var(--s-dim);
+}
+.s-stat-pending b { color: #e2c37a; font-size: 14.5px; }

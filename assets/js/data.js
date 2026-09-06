@@ -525,10 +525,14 @@ window.DB = (function () {
       code: 'UB2608142135235870',
       product: sellerItems[0][0],
       image: sellerItems[0][2],
+      /* The open task the seller app opens on. It has to sit inside the
+         seeded balance of 3,245.47 — priced above it, a fresh install starts
+         with a member who can neither submit this order nor grab the next
+         one, so their Special Order number is never reached. */
       price: 31.04,
-      qty: 183,
-      total: 5680.0,
-      commission: 1931.2,
+      qty: 100,
+      total: 3104.0,
+      commission: 1055.36,
       rate: 34,
       status: 'Pending',
       createdAt: '2026-08-14 21:35:23'

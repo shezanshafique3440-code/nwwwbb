@@ -31,7 +31,9 @@
             (f.placeholder ? ' placeholder="' + f.placeholder + '"' : '') +
             ' value="' + U.esc(v) + '">';
         }
-        return '<div class="field"><label>' + f.label + '</label>' + input + '</div>';
+        return '<div class="field"><label>' + f.label + '</label>' + input +
+          (f.hint ? '<div class="field-hint" data-hint="' + f.name + '"></div>' : '') +
+          '</div>';
       })
       .join('');
 
@@ -41,6 +43,34 @@
       '<button class="btn btn-secondary" data-close>Cancel</button>' +
         '<button class="btn btn-primary" data-save>' + saveLabel + '</button>'
     );
+
+    /* Fields that carry a hint say what the numbers typed above them come to,
+       and say it again on every keystroke — a percentage is easier to set
+       when the money it works out to is on the screen beside it. */
+    const hinted = fields.filter(function (f) { return f.hint; });
+    if (hinted.length) {
+      const read = function () {
+        const out = {};
+        fields.forEach(function (f) {
+          const el = m.querySelector('[data-f="' + f.name + '"]');
+          out[f.name] = f.type === 'number' ? Number(el.value || 0) : el.value;
+        });
+        return out;
+      };
+      const refresh = function () {
+        const vals = read();
+        hinted.forEach(function (f) {
+          const box = m.querySelector('[data-hint="' + f.name + '"]');
+          if (box) box.textContent = f.hint(vals) || '';
+        });
+      };
+      fields.forEach(function (f) {
+        const el = m.querySelector('[data-f="' + f.name + '"]');
+        el.addEventListener('input', refresh);
+        el.addEventListener('change', refresh);
+      });
+      refresh();
+    }
 
     m.querySelector('[data-save]').addEventListener('click', function () {
       const out = {};
@@ -1206,9 +1236,43 @@
             ],
             credit: [{ name: 'creditScore', label: 'Credit score', type: 'number' }],
             special: [
-              { name: 'orderNo', label: 'Order no', type: 'number' },
-              { name: 'amount', label: 'Amount ($)', type: 'number', step: '0.01' },
-              { name: 'commission', label: 'Commission percentage', type: 'number', step: '0.1' },
+              {
+                name: 'orderNo', label: 'Order no', type: 'number',
+                /* The number counts every task this member has ever finished,
+                   so one they are already past never arrives — say so here
+                   rather than letting it sit there doing nothing. */
+                hint: function (v) {
+                  const n = Number(v.orderNo || 0);
+                  const done = Number(c.completedOrders || 0);
+                  if (n <= 0) return 'Zero turns the special order off.';
+                  if (n <= done) {
+                    return 'This member has already completed ' + done + ' order(s), so order ' + n +
+                      ' has passed and will never arrive. Set ' + (done + 1) + ' or higher.';
+                  }
+                  return 'Completed so far: ' + done + '. The lucky order arrives on their next ' +
+                    (n - done === 1 ? 'grab.' : (n - done) + ' grabs.');
+                }
+              },
+              {
+                name: 'amount', label: 'Amount ($)', type: 'number', step: '0.01',
+                /* what this member will be short by when the order lands */
+                hint: function (v) {
+                  const amt = Number(v.amount || 0);
+                  if (amt <= 0) return '';
+                  const gap = amt - Number(c.balance || 0);
+                  return gap > 0
+                    ? 'Balance $' + U.money(c.balance) + ' — gap of $' + U.money(gap) + ' to recharge.'
+                    : 'Balance $' + U.money(c.balance) + ' — covered, no gap.';
+                }
+              },
+              {
+                name: 'commission', label: 'Commission percentage', type: 'number', step: '0.1',
+                hint: function (v) {
+                  const amt = Number(v.amount || 0);
+                  const rate = Number(v.commission || 0);
+                  return amt > 0 && rate > 0 ? '= $' + U.money((amt * rate) / 100) + ' at ' + rate + '%' : '';
+                }
+              },
               { name: 'limit', label: 'Orders limit (0 = use the VIP level, up to 100)', type: 'number', min: '0', max: '100' }
             ],
             bank: [

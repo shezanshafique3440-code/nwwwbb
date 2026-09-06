@@ -1461,3 +1461,12 @@ html[data-theme="dark"] .mini-stat.tone-orange { background: rgba(255, 159, 67, 
   .user-menu { width: min(260px, calc(100vw - 32px)); }
   .tab-row a { flex: 1 1 auto; justify-content: center; }
 }
+
+/* what the numbers in a form field come to, said under the field */
+.field-hint {
+  margin-top: 6px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-muted, #6b7280);
+}
+.field-hint:empty { display: none; }

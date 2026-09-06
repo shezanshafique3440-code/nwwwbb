@@ -576,6 +576,12 @@ const q = {
     'SELECT COUNT(*) AS n FROM seller_orders WHERE seller_id = ? AND substr(created_at, 1, 10) = ?'
   ),
   sellerFrozen: db.prepare("SELECT * FROM seller_orders WHERE seller_id = ? AND status = 'Freezing'"),
+  /* Every order still open. An order worth more than the wallet holds is not
+     a status of its own — it is an open order carrying a gap — so the screens
+     that ask about the gap read this and compare against the balance. */
+  sellerOpen: db.prepare(
+    "SELECT * FROM seller_orders WHERE seller_id = ? AND status IN ('Pending', 'Freezing') ORDER BY id DESC"
+  ),
   sellerStalePending: db.prepare(
     "SELECT * FROM seller_orders WHERE seller_id = ? AND status = 'Pending' AND seeded = 0 " +
     'AND datetime(created_at) < datetime(?)'

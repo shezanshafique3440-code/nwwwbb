@@ -389,7 +389,11 @@ function withRequester(row) {
 async function api(req, res, url) {
   const parts = url.pathname.replace(/^\/api\/?/, '').split('/').filter(Boolean);
   const head = parts[0] || '';
-  const id = parts[1] ? Number(parts[1]) : null;
+  /* a detail segment is a positive row id. A 0, or a stray word, names no
+     record at all, so it has to answer 404 rather than fall quietly through
+     and hand back the whole collection in one record's place. */
+  const detail = parts.length > 1;
+  const id = /^[1-9][0-9]*$/.test(parts[1] || '') ? Number(parts[1]) : null;
   const sub = parts[2] || '';
   const method = req.method.toUpperCase();
   const body = method === 'GET' || method === 'DELETE' ? {} : await readBody(req);
@@ -399,6 +403,10 @@ async function api(req, res, url) {
     if (parts[1] === 'login' && method === 'POST') {
       const who = String(body.email || body.phone || '').trim();
       const digits = who.replace(/\D/g, '');
+      /* seeded rows carry an empty username and an empty phone, so a blank
+         box would match one of them and sign that account in on its password
+         alone. Nobody is identified by nothing: ask for a name first. */
+      if (!who) return send(res, 401, { error: 'Invalid credentials' });
       const user =
         q.userByEmail.get(who) ||
         q.userByName.get(who) ||
@@ -613,6 +621,10 @@ async function api(req, res, url) {
       const agent = user.agent ? q.userByName.get(user.agent) : null;
 
       return send(res, 200, Object.assign(mapUser(user), {
+        /* How many order tasks this member has finished. The Special Order
+           number counts against this, so the screen that sets it has to show
+           where they already stand — a number they are past never arrives. */
+        completedOrders: q.sellerCount.get(user.id, 'Completed').n,
         orders: orders,
         transactions: transactions,
         withdrawals: q.withdrawsFor.all(user.name).map(function (w) {
@@ -632,7 +644,7 @@ async function api(req, res, url) {
       }));
     }
 
-    if (method === 'GET') {
+    if (method === 'GET' && !detail) {
       const role = url.searchParams.get('role') || 'Customer';
       return send(res, 200, q.activeUsers.all(role).map(mapUser));
     }
@@ -747,7 +759,7 @@ async function api(req, res, url) {
 
   /* ---- archived users ---- */
   if (head === 'archived-users') {
-    if (method === 'GET') return send(res, 200, q.archivedUsers.all().map(mapArchived));
+    if (method === 'GET' && !detail) return send(res, 200, q.archivedUsers.all().map(mapArchived));
     if (id && sub === 'restore' && method === 'POST') {
       const user = q.userById.get(id);
       if (!user || !user.deleted_at) return send(res, 404, { error: 'Archived user not found' });
@@ -777,7 +789,7 @@ async function api(req, res, url) {
 
   /* ---- seller order tasks, seen from the panel ---- */
   if (head === 'seller-orders') {
-    if (method === 'GET') {
+    if (method === 'GET' && !detail) {
       const rows = db
         .prepare(
           `SELECT o.*, u.name AS seller FROM seller_orders o
@@ -833,7 +845,7 @@ async function api(req, res, url) {
 
   /* ---- VIP tiers ---- */
   if (head === 'vip-levels') {
-    if (method === 'GET') {
+    if (method === 'GET' && !detail) {
       return send(res, 200, q.vipLevels.all().map(function (l) {
         return {
           id: l.id,
@@ -870,8 +882,8 @@ async function api(req, res, url) {
       if (head === 'withdraws' || head === 'recharges') return send(res, 200, withRequester(row));
       return send(res, 200, row);
     }
-    if (method === 'GET') return send(res, 200, listRows(head));
-    if (method === 'POST' && !id) return send(res, 201, insertRow(head, body));
+    if (method === 'GET' && !detail) return send(res, 200, listRows(head));
+    if (method === 'POST' && !detail) return send(res, 201, insertRow(head, body));
     if (id && sub === 'toggle' && method === 'POST') {
       const table = RESOURCES[head].table;
       const row = db.prepare('SELECT * FROM ' + table + ' WHERE id = ?').get(id);
@@ -890,6 +902,7 @@ async function api(req, res, url) {
     }
   }
 
+  if (detail && !id) return send(res, 404, { error: 'Not found' });
   return send(res, 404, { error: 'Unknown endpoint' });
 }
 
@@ -1063,7 +1076,9 @@ function payoutOf(seller) {
 function sellerSummary(me) {
   const fresh = q.userById.get(me.id);
   const vip = vipFor(fresh.balance);
-  const frozen = q.sellerFrozen.all(me.id);
+  const open = q.sellerOpen.all(me.id);
+  /* an open order the wallet cannot cover yet — the gap, wherever it is shown */
+  const frozen = open.filter(function (o) { return o.total > fresh.balance; });
   const shortfall = frozen.reduce(function (max, o) {
     return Math.max(max, money(o.total - fresh.balance));
   }, 0);
@@ -1085,11 +1100,14 @@ function sellerSummary(me) {
       : vip.current.daily_orders,
     todayCommission: q.sellerCommissionOn.get(me.id, today()).total,
     totalCommission: q.sellerCommission.get(me.id).total,
+    /* what the open orders will pay once they go through — the special order
+       shows its commission from the moment it is grabbed, not only after */
+    pendingCommission: money(open.reduce(function (sum, o) { return sum + o.commission; }, 0)),
+    totalOrders: q.sellerCount.get(me.id, 'Completed').n + open.length,
     completed: q.sellerCount.get(me.id, 'Completed').n,
-    /* a frozen order is still an order they have open and have not finished,
-       so it counts here — otherwise the card reads "pending 0" while the gap
-       note underneath asks them to top it up */
-    pending: q.sellerCount.get(me.id, 'Pending').n + frozen.length,
+    /* every order they have open and have not finished — one that is waiting
+       on a recharge is already Pending, so it is counted once, here */
+    pending: open.length,
     frozen: frozen.length,
     frozenShortfall: shortfall > 0 ? shortfall : 0,
     /* what the wallet has to make up before the frozen order can go through */
@@ -1150,7 +1168,7 @@ function teamOf(seller) {
 
 function sellerApi(req, res, me, parts, method, body) {
   const head = parts[0] || '';
-  const id = parts[1] ? Number(parts[1]) : null;
+  const id = /^[1-9][0-9]*$/.test(parts[1] || '') ? Number(parts[1]) : null;
   const sub = parts[2] || '';
 
   maintain(me.id);
@@ -1381,15 +1399,29 @@ function sellerApi(req, res, me, parts, method, body) {
 
   if (head === 'orders' && method === 'GET') {
     const status = (new URL(req.url, 'http://x').searchParams.get('status') || 'all').toLowerCase();
-    const rows = status === 'all' ? q.sellerOrders.all(me.id) : q.sellerOrdersByStatus.all(me.id, status);
+    let rows;
+    if (status === 'all') {
+      rows = q.sellerOrders.all(me.id);
+    } else if (status === 'freezing') {
+      /* the tab asks for the orders that are waiting on money, which is a
+         question about the balance rather than about a stored status */
+      const held = q.userById.get(me.id);
+      rows = q.sellerOpen.all(me.id).filter(function (o) {
+        return o.total > held.balance || o.status === 'Freezing';
+      });
+    } else {
+      rows = q.sellerOrdersByStatus.all(me.id, status);
+    }
     return send(res, 200, rows.map(mapSellerOrder));
   }
 
   if (head === 'grab' && method === 'POST') {
     const blocking = q.sellerBlocking.all(me.id)[0];
     if (blocking) {
-      if (blocking.status === 'Freezing') {
-        const held = q.userById.get(me.id);
+      const held = q.userById.get(me.id);
+      /* short of the money is a different sentence from "finish this one
+         first", and it is the balance that decides which one they hear */
+      if (blocking.total > held.balance) {
         return send(res, 409, Object.assign(gapOf(held.balance, blocking.total), {
           order: mapSellerOrder(blocking)
         }));
@@ -1419,14 +1451,10 @@ function sellerApi(req, res, me, parts, method, body) {
       });
     }
 
-    /* only match products this seller can actually take on */
-    const affordable = SEED.sellerItems.filter(function (it) { return it[1] <= seller.balance; });
-    if (!affordable.length) {
-      const cheapest = SEED.sellerItems.reduce(function (low, it) { return Math.min(low, it[1]); }, Infinity);
-      return send(res, 400, gapOf(seller.balance, cheapest));
-    }
     /* Which order this is for them: the administrator's Special Order names
-       the number that is the lucky one, what it is worth and what it pays. */
+       the number that is the lucky one, what it is worth and what it pays.
+       This is settled before anything else, because the lucky order is the
+       one order that is allowed to sit above the wallet. */
     const doneSoFar = q.sellerCount.get(me.id, 'Completed').n;
     const thisNo = doneSoFar + 1;
     const luckyNo = Number(seller.so_order_no || 0);
@@ -1437,9 +1465,20 @@ function sellerApi(req, res, me, parts, method, body) {
        few orders so the flow has one */
     const isPremium = !lucky && luckyNo <= 0 && thisNo % RULES.premiumEvery === 0;
 
+    /* Only match products this seller can actually take on. The lucky order
+       is priced by the administrator rather than by the catalogue, so an
+       empty shelf must not turn it away — that is exactly the order that is
+       meant to arrive with a gap on it. */
+    const affordable = SEED.sellerItems.filter(function (it) { return it[1] <= seller.balance; });
+    if (!lucky && !affordable.length) {
+      const cheapest = SEED.sellerItems.reduce(function (low, it) { return Math.min(low, it[1]); }, Infinity);
+      return send(res, 400, gapOf(seller.balance, cheapest));
+    }
+    const pool = affordable.length ? affordable : SEED.sellerItems;
+
     const item = isPremium
-      ? affordable.reduce(function (low, it) { return it[1] < low[1] ? it : low; })
-      : affordable[Math.floor(Math.random() * affordable.length)];
+      ? pool.reduce(function (low, it) { return it[1] < low[1] ? it : low; })
+      : pool[Math.floor(Math.random() * pool.length)];
 
     /* A premium task asks for a little more than the wallet holds — a little,
        so one ordinary recharge always closes the gap. */
@@ -1455,16 +1494,28 @@ function sellerApi(req, res, me, parts, method, body) {
       rate = Number(seller.so_commission || 0) > 0 ? Number(seller.so_commission) : vip.rate;
     } else {
       price = item[1];
-      qty = isPremium
-        ? Math.max(1, Math.ceil((seller.balance + overshoot) / price))
-        : Math.max(1, Math.min(MAX_QTY, Math.round((seller.balance * (0.5 + Math.random() * 0.35)) / price)));
+      if (isPremium) {
+        qty = Math.max(1, Math.ceil((seller.balance + overshoot) / price));
+      } else {
+        /* An ordinary task never asks for more than the wallet already holds.
+           The quantity used to be rounded, which tipped the total past the
+           balance often enough to freeze the run on order two or three — so
+           the member never reached their Special Order number at all. Round
+           down, then step back until it fits. */
+        qty = Math.max(1, Math.min(MAX_QTY, Math.floor((seller.balance * (0.5 + Math.random() * 0.35)) / price)));
+        while (qty > 1 && money(price * qty) > seller.balance) qty--;
+      }
       total = money(price * qty);
       rate = vip.rate;
     }
     const commission = money((total * rate) / 100);
     const now = new Date();
     const code = orderCode(now);
-    const frozen = total > seller.balance;
+    /* An order worth more than the wallet holds is still a pending order —
+       it is simply carrying a gap, and the member closes it by recharging.
+       'Freezing' is kept for the other thing entirely: an order left
+       unsubmitted for hours, which maintain() moves there. */
+    const short = total > seller.balance;
 
     const info = db
       .prepare(
@@ -1473,8 +1524,8 @@ function sellerApi(req, res, me, parts, method, body) {
       )
       .run(
         me.id, code, item[0], item[2], price, qty, total, commission, rate,
-        frozen ? 'Freezing' : 'Pending', stamp(now),
-        frozen ? 'Order value is above your balance' : null
+        'Pending', stamp(now),
+        short ? 'Order value is above your balance' : null
       );
 
     /* the administrator sees the order the moment it is taken, not only once
@@ -1487,7 +1538,7 @@ function sellerApi(req, res, me, parts, method, body) {
        VALUES (?, ?, ?, ?, '', ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, 0, 0, 0)`
     ).run(
       code, seller.name, seller.phone || '', item[0], item[2],
-      price, qty, total, commission, frozen ? 'Freezing' : 'Pending', at[0], at[1] || ''
+      price, qty, total, commission, 'Pending', at[0], at[1] || ''
     );
 
     const row = db.prepare('SELECT * FROM seller_orders WHERE id = ?').get(Number(info.lastInsertRowid));
@@ -1495,8 +1546,8 @@ function sellerApi(req, res, me, parts, method, body) {
       /* the app congratulates them only on the one the administrator named */
       lucky: lucky,
       orderNo: thisNo,
-      shortfall: frozen ? money(total - seller.balance) : 0,
-      gap: frozen ? gapOf(seller.balance, total) : null
+      shortfall: short ? money(total - seller.balance) : 0,
+      gap: short ? gapOf(seller.balance, total) : null
     }));
   }
 
@@ -1524,11 +1575,16 @@ function sellerApi(req, res, me, parts, method, body) {
   if (head === 'orders' && id && sub === 'submit' && method === 'POST') {
     const order = q.sellerOrderById.get(id, me.id);
     if (!order) return send(res, 404, { error: 'Order not found' });
-    if (order.status === 'Freezing') {
-      const seller = q.userById.get(me.id);
-      return send(res, 400, Object.assign(gapOf(seller.balance, order.total), {
-        shortfall: money(order.total - seller.balance)
+    const holder = q.userById.get(me.id);
+    /* the money has to be there before the order can go through; once a
+       recharge closes the gap the same order submits with no status to flip */
+    if (order.status !== 'Completed' && order.total > holder.balance) {
+      return send(res, 400, Object.assign(gapOf(holder.balance, order.total), {
+        shortfall: money(order.total - holder.balance)
       }));
+    }
+    if (order.status === 'Freezing') {
+      return send(res, 400, { error: 'This order was left too long and is on hold — contact support.' });
     }
     if (order.status !== 'Pending') return send(res, 400, { error: 'This order has already been submitted' });
 
