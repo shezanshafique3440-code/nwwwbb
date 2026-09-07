@@ -751,14 +751,20 @@
         '<div><span class="k">Total order:</span><span class="v">$' + money(o.total) + '</span></div>' +
         '<div><span class="k">commission:</span><span class="v money">$' + money(o.commission) + '</span></div>' +
         '</div>' +
-        (status === 'pending'
-          ? '<button class="s-btn s-btn-square" data-submit="' + o.id + '">SUBMIT ORDER</button>'
-          : '') +
-        (status === 'freezing'
-          ? '<div class="s-frozen-note" style="margin-top:14px">' + esc(o.frozenReason || 'Order frozen') +
-            '. Recharge to ' + money(o.total) + ' to unfreeze.</div>' +
-            '<a class="s-btn s-btn-square s-btn-ghost" href="recharge.html">RECHARGE TO UNFREEZE</a>'
-          : '') +
+        /* An order the wallet cannot cover yet waits here: what is missing,
+           and the way to close it. The moment a recharge covers the total the
+           same card comes back with SUBMIT ORDER on it. */
+        (o.gap && o.gap.gap > 0
+          ? '<div class="s-frozen-note" style="margin-top:14px">Your account balance is not enough, ' +
+            'there is a gap of <b>$' + money(o.gap.gap) + '</b>. ' +
+            'Balance $' + money(o.gap.balance) + ' &middot; required $' + money(o.gap.required) + '.</div>' +
+            '<a class="s-btn s-btn-square s-btn-ghost" href="recharge.html">RECHARGE NOW</a>'
+          : status === 'pending'
+            ? '<button class="s-btn s-btn-square" data-submit="' + o.id + '">SUBMIT ORDER</button>'
+            : status === 'freezing'
+              ? '<div class="s-frozen-note" style="margin-top:14px">' + esc(o.frozenReason || 'Order frozen') +
+                '</div>'
+              : '') +
         '</div>'
       );
     }

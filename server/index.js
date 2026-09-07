@@ -957,8 +957,14 @@ function vipFor(balance) {
   return { current: current, next: next, levels: levels };
 }
 
-function mapSellerOrder(o) {
+function mapSellerOrder(o, balance) {
+  /* An open order the wallet cannot cover yet carries its gap, so every
+     screen that shows the order can say what is still missing and offer the
+     recharge — rather than a SUBMIT button that the server will refuse. */
+  const open = o.status === 'Pending' || o.status === 'Freezing';
+  const short = open && balance != null && o.total > balance;
   return {
+    gap: short ? gapOf(balance, o.total) : null,
     id: o.id,
     code: o.code,
     product: o.product,
@@ -1399,20 +1405,20 @@ function sellerApi(req, res, me, parts, method, body) {
 
   if (head === 'orders' && method === 'GET') {
     const status = (new URL(req.url, 'http://x').searchParams.get('status') || 'all').toLowerCase();
+    const holder = q.userById.get(me.id);
     let rows;
     if (status === 'all') {
       rows = q.sellerOrders.all(me.id);
     } else if (status === 'freezing') {
       /* the tab asks for the orders that are waiting on money, which is a
          question about the balance rather than about a stored status */
-      const held = q.userById.get(me.id);
       rows = q.sellerOpen.all(me.id).filter(function (o) {
-        return o.total > held.balance || o.status === 'Freezing';
+        return o.total > holder.balance || o.status === 'Freezing';
       });
     } else {
       rows = q.sellerOrdersByStatus.all(me.id, status);
     }
-    return send(res, 200, rows.map(mapSellerOrder));
+    return send(res, 200, rows.map(function (o) { return mapSellerOrder(o, holder.balance); }));
   }
 
   if (head === 'grab' && method === 'POST') {
@@ -1423,12 +1429,12 @@ function sellerApi(req, res, me, parts, method, body) {
          first", and it is the balance that decides which one they hear */
       if (blocking.total > held.balance) {
         return send(res, 409, Object.assign(gapOf(held.balance, blocking.total), {
-          order: mapSellerOrder(blocking)
+          order: mapSellerOrder(blocking, held.balance)
         }));
       }
       return send(res, 409, {
         error: 'Please submit your pending order before grabbing a new one',
-        order: mapSellerOrder(blocking)
+        order: mapSellerOrder(blocking, held.balance)
       });
     }
 
@@ -1542,12 +1548,11 @@ function sellerApi(req, res, me, parts, method, body) {
     );
 
     const row = db.prepare('SELECT * FROM seller_orders WHERE id = ?').get(Number(info.lastInsertRowid));
-    return send(res, 201, Object.assign(mapSellerOrder(row), {
+    return send(res, 201, Object.assign(mapSellerOrder(row, seller.balance), {
       /* the app congratulates them only on the one the administrator named */
       lucky: lucky,
       orderNo: thisNo,
-      shortfall: short ? money(total - seller.balance) : 0,
-      gap: short ? gapOf(seller.balance, total) : null
+      shortfall: short ? money(total - seller.balance) : 0
     }));
   }
 
@@ -1569,7 +1574,7 @@ function sellerApi(req, res, me, parts, method, body) {
 
     db.prepare('UPDATE seller_orders SET rating = ?, rating2 = ?, rating3 = ? WHERE id = ?')
       .run(stars[0], stars[1], stars[2], id);
-    return send(res, 200, { order: mapSellerOrder(q.sellerOrderById.get(id, me.id)) });
+    return send(res, 200, { order: mapSellerOrder(q.sellerOrderById.get(id, me.id), q.userById.get(me.id).balance) });
   }
 
   if (head === 'orders' && id && sub === 'submit' && method === 'POST') {
@@ -1616,7 +1621,7 @@ function sellerApi(req, res, me, parts, method, body) {
     }
 
     return send(res, 200, {
-      order: mapSellerOrder(q.sellerOrderById.get(id, me.id)),
+      order: mapSellerOrder(q.sellerOrderById.get(id, me.id), q.userById.get(me.id).balance),
       summary: sellerSummary(me)
     });
   }
