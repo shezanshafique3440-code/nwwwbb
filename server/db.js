@@ -162,7 +162,13 @@ db.exec(`
     rating       INTEGER NOT NULL DEFAULT 0,
     rating2      INTEGER NOT NULL DEFAULT 0,
     rating3      INTEGER NOT NULL DEFAULT 0,
-    seeded       INTEGER NOT NULL DEFAULT 0
+    seeded       INTEGER NOT NULL DEFAULT 0,
+    /* What the wallet has to hold before this order can go through. For an
+       ordinary task that is simply its total. A special order is a fresh
+       payment on top of whatever the member already has, so its threshold is
+       the balance they held when they grabbed it plus the amount set for
+       them — the gap is the full amount, not the part their balance misses. */
+    required_balance REAL NOT NULL DEFAULT 0
   );
 
   CREATE TABLE IF NOT EXISTS linked_accounts (
@@ -270,6 +276,9 @@ db.exec(`
   }
   if (soCols.length && soCols.indexOf('seeded') === -1) {
     db.exec('ALTER TABLE seller_orders ADD COLUMN seeded INTEGER NOT NULL DEFAULT 0');
+  }
+  if (soCols.length && soCols.indexOf('required_balance') === -1) {
+    db.exec('ALTER TABLE seller_orders ADD COLUMN required_balance REAL NOT NULL DEFAULT 0');
   }
   ['rating', 'rating2', 'rating3'].forEach(function (c) {
     if (soCols.length && soCols.indexOf(c) === -1) {

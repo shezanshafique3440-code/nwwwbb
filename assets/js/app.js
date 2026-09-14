@@ -1255,14 +1255,14 @@
               },
               {
                 name: 'amount', label: 'Amount ($)', type: 'number', step: '0.01',
-                /* what this member will be short by when the order lands */
+                /* The special order is paid for separately, so this is what
+                   they have to put in on top of whatever they already hold —
+                   a balance that would cover it does not absorb it. */
                 hint: function (v) {
                   const amt = Number(v.amount || 0);
                   if (amt <= 0) return '';
-                  const gap = amt - Number(c.balance || 0);
-                  return gap > 0
-                    ? 'Balance $' + U.money(c.balance) + ' — gap of $' + U.money(gap) + ' to recharge.'
-                    : 'Balance $' + U.money(c.balance) + ' — covered, no gap.';
+                  return 'Paid separately: balance $' + U.money(c.balance) + ' → they must recharge $' +
+                    U.money(amt) + ' before this order can be submitted.';
                 }
               },
               {

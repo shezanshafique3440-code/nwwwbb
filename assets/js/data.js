@@ -52,7 +52,8 @@ window.DB = (function () {
       total: total,
       shipping: 0,
       discount: 0,
-      commission: Math.round(total * 0.1 * 100) / 100,
+      /* the mid VIP rate, so the seeded history reads like the live one */
+      commission: Math.round(total * 0.05 * 100) / 100,
       status: status,
       date: date,
       time: time,
@@ -458,7 +459,7 @@ window.DB = (function () {
       phone: '0000000080',
       role: 'Seller',
       balance: 3245.47,
-      rate: 34,
+      rate: 6.5,
       status: 'Active',
       joined: '2026-07-28',
       inviter: 'agent'
@@ -470,7 +471,7 @@ window.DB = (function () {
       phone: '0000000081',
       role: 'Seller',
       balance: 812.6,
-      rate: 25,
+      rate: 4,
       status: 'Active',
       joined: '2026-08-02',
       inviter: 'agent'
@@ -483,7 +484,7 @@ window.DB = (function () {
       phone: '0000000082',
       role: 'Seller',
       balance: 1620.0,
-      rate: 30,
+      rate: 5,
       status: 'Active',
       joined: '2026-08-11',
       inviter: 'Pooja sharma'
@@ -495,7 +496,7 @@ window.DB = (function () {
       phone: '0000000083',
       role: 'Seller',
       balance: 640.25,
-      rate: 25,
+      rate: 4,
       status: 'Active',
       joined: '2026-08-17',
       inviter: 'Pooja sharma'
@@ -507,7 +508,7 @@ window.DB = (function () {
       phone: '0000000084',
       role: 'Seller',
       balance: 305.0,
-      rate: 20,
+      rate: 3,
       status: 'Active',
       joined: '2026-08-21',
       inviter: 'rehan.k'
@@ -532,58 +533,58 @@ window.DB = (function () {
       price: 31.04,
       qty: 100,
       total: 3104.0,
-      commission: 1055.36,
-      rate: 34,
+      commission: 201.76,
+      rate: 6.5,
       status: 'Pending',
       createdAt: '2026-08-14 21:35:23'
     },
       { id: 5000, sellerId: 9001, code: 'UB260826350020', product: 'Nike Air Zoom Pegasus 40 running shoes', image: '\u{1F45F}',
-        price: 129.9, qty: 2, total: 259.8, commission: 31.18, rate: 12, status: 'Completed',
+        price: 129.9, qty: 2, total: 259.8, commission: 16.89, rate: 6.5, status: 'Completed',
         createdAt: '2026-08-26 08:00:00' },
       { id: 4999, sellerId: 9001, code: 'UB260827091121', product: 'Apple AirPods Pro (2nd generation)', image: '\u{1F3A7}',
-        price: 249.0, qty: 1, total: 249.0, commission: 24.9, rate: 10, status: 'Completed',
+        price: 249.0, qty: 1, total: 249.0, commission: 16.18, rate: 6.5, status: 'Completed',
         createdAt: '2026-08-26 09:07:13' },
       { id: 4998, sellerId: 9001, code: 'UB260827832222', product: 'Dyson Supersonic hair dryer, nickel', image: '\u{1F4A8}',
-        price: 429.0, qty: 1, total: 429.0, commission: 34.32, rate: 8, status: 'Completed',
+        price: 429.0, qty: 1, total: 429.0, commission: 27.89, rate: 6.5, status: 'Completed',
         createdAt: '2026-08-26 10:14:26' },
       { id: 4997, sellerId: 9001, code: 'UB260828573323', product: 'Levi\u2019s 501 original fit jeans, stonewash', image: '\u{1F456}',
-        price: 89.5, qty: 3, total: 268.5, commission: 37.59, rate: 14, status: 'Completed',
+        price: 89.5, qty: 3, total: 268.5, commission: 17.45, rate: 6.5, status: 'Completed',
         createdAt: '2026-08-26 11:21:39' },
       { id: 4996, sellerId: 9001, code: 'UB260829314424', product: 'Samsung Galaxy Watch6 Classic 47mm', image: '\u{231A}',
-        price: 399.0, qty: 1, total: 399.0, commission: 35.91, rate: 9, status: 'Completed',
+        price: 399.0, qty: 1, total: 399.0, commission: 25.93, rate: 6.5, status: 'Completed',
         createdAt: '2026-08-26 12:28:52' },
       { id: 4995, sellerId: 9001, code: 'UB260830055525', product: 'Ray-Ban Wayfarer polarised sunglasses', image: '\u{1F576}',
-        price: 175.0, qty: 2, total: 350.0, commission: 42.0, rate: 12, status: 'Completed',
+        price: 175.0, qty: 2, total: 350.0, commission: 22.75, rate: 6.5, status: 'Completed',
         createdAt: '2026-08-26 13:35:05' },
       { id: 4994, sellerId: 9001, code: 'UB260830796626', product: 'Le Creuset signature cast iron casserole 24cm', image: '\u{1F958}',
-        price: 320.0, qty: 1, total: 320.0, commission: 32.0, rate: 10, status: 'Completed',
+        price: 320.0, qty: 1, total: 320.0, commission: 20.8, rate: 6.5, status: 'Completed',
         createdAt: '2026-08-26 14:42:18' },
       { id: 4993, sellerId: 9001, code: 'UB260831537727', product: 'Adidas Ultraboost Light, core black', image: '\u{1F45F}',
-        price: 190.0, qty: 2, total: 380.0, commission: 41.8, rate: 11, status: 'Completed',
+        price: 190.0, qty: 2, total: 380.0, commission: 24.7, rate: 6.5, status: 'Completed',
         createdAt: '2026-08-26 15:49:31' },
       { id: 4992, sellerId: 9001, code: 'UB260832278828', product: 'Herschel Little America backpack 25L', image: '\u{1F392}',
-        price: 110.0, qty: 3, total: 330.0, commission: 42.9, rate: 13, status: 'Completed',
+        price: 110.0, qty: 3, total: 330.0, commission: 21.45, rate: 6.5, status: 'Completed',
         createdAt: '2026-08-26 16:56:44' },
       { id: 4991, sellerId: 9001, code: 'UB260833019929', product: 'Philips 3200 LatteGo espresso machine', image: '\u{2615}',
-        price: 549.0, qty: 1, total: 549.0, commission: 43.92, rate: 8, status: 'Completed',
+        price: 549.0, qty: 1, total: 549.0, commission: 35.69, rate: 6.5, status: 'Completed',
         createdAt: '2026-08-26 17:03:57' },
       { id: 4990, sellerId: 9001, code: 'UB260833761030', product: 'Uniqlo Ultra Light Down seamless parka', image: '\u{1F9E5}',
-        price: 79.9, qty: 4, total: 319.6, commission: 47.94, rate: 15, status: 'Completed',
+        price: 79.9, qty: 4, total: 319.6, commission: 20.77, rate: 6.5, status: 'Completed',
         createdAt: '2026-08-26 18:10:10' },
       { id: 4989, sellerId: 9001, code: 'UB260834502131', product: 'Nike Air Zoom Pegasus 40 running shoes', image: '\u{1F45F}',
-        price: 129.9, qty: 1, total: 129.9, commission: 15.59, rate: 12, status: 'Completed',
+        price: 129.9, qty: 1, total: 129.9, commission: 8.44, rate: 6.5, status: 'Completed',
         createdAt: '2026-08-26 19:17:23' },
       { id: 4988, sellerId: 9001, code: 'UB260835243232', product: 'Ray-Ban Wayfarer polarised sunglasses', image: '\u{1F576}',
-        price: 175.0, qty: 1, total: 175.0, commission: 241.74, rate: 138.14, status: 'Completed',
+        price: 175.0, qty: 1, total: 175.0, commission: 11.38, rate: 6.5, status: 'Completed',
         createdAt: '2026-08-26 08:24:36' }
   ];
 
   /* Downline activity — what the team screen totals up */
   (function downline() {
     const members = [
-      [9003, 'rehan.k', 30, 4],
-      [9004, 'ayesha.m', 25, 3],
-      [9005, 'tariq.s', 20, 2]
+      [9003, 'rehan.k', 5, 4],
+      [9004, 'ayesha.m', 4, 3],
+      [9005, 'tariq.s', 3, 2]
     ];
     let id = 4800;
     members.forEach(function (m) {
@@ -633,11 +634,14 @@ window.DB = (function () {
   /* VIP tiers — the balance a seller holds decides the commission rate
      they earn and how many orders they may take in a day. */
   const vipLevels = [
-    { id: 1, name: 'VIP1', minBalance: 50, rate: 20, dailyOrders: 10, color: '#9aa4b2' },
-    { id: 2, name: 'VIP2', minBalance: 500, rate: 25, dailyOrders: 20, color: '#4c9be8' },
-    { id: 3, name: 'VIP3', minBalance: 1500, rate: 30, dailyOrders: 30, color: '#16b3ae' },
-    { id: 4, name: 'VIP4', minBalance: 3000, rate: 34, dailyOrders: 40, color: '#b07d12' },
-    { id: 5, name: 'VIP5', minBalance: 10000, rate: 40, dailyOrders: 60, color: '#7b4bd8' }
+    /* Commission is a small percentage of the order, the way these platforms
+       pay: a few percent, climbing with the tier. The rates used to run
+       20-40%, which paid $137 on a $549 task. */
+    { id: 1, name: 'VIP1', minBalance: 50, rate: 3, dailyOrders: 10, color: '#9aa4b2' },
+    { id: 2, name: 'VIP2', minBalance: 500, rate: 4, dailyOrders: 20, color: '#4c9be8' },
+    { id: 3, name: 'VIP3', minBalance: 1500, rate: 5, dailyOrders: 30, color: '#16b3ae' },
+    { id: 4, name: 'VIP4', minBalance: 3000, rate: 6.5, dailyOrders: 40, color: '#b07d12' },
+    { id: 5, name: 'VIP5', minBalance: 10000, rate: 8, dailyOrders: 60, color: '#7b4bd8' }
   ];
 
   const rechargePresets = [100, 200, 500, 1000, 2000, 3000, 5000, 8000];

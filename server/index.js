@@ -957,14 +957,24 @@ function vipFor(balance) {
   return { current: current, next: next, levels: levels };
 }
 
+/* What the wallet must hold before this order can go through. An ordinary
+   task asks for its own value; a special order asks for a fresh payment on
+   top of what the member already had, so the threshold was written down when
+   they grabbed it. Orders made before that column existed fall back to the
+   total, which is what they always meant. */
+function requiredFor(o) {
+  return Number(o.required_balance) > 0 ? Number(o.required_balance) : Number(o.total);
+}
+
 function mapSellerOrder(o, balance) {
   /* An open order the wallet cannot cover yet carries its gap, so every
      screen that shows the order can say what is still missing and offer the
      recharge — rather than a SUBMIT button that the server will refuse. */
   const open = o.status === 'Pending' || o.status === 'Freezing';
-  const short = open && balance != null && o.total > balance;
+  const needs = requiredFor(o);
+  const short = open && balance != null && needs > balance;
   return {
-    gap: short ? gapOf(balance, o.total) : null,
+    gap: short ? gapOf(balance, needs) : null,
     id: o.id,
     code: o.code,
     product: o.product,
@@ -1002,7 +1012,7 @@ function maintain(sellerId) {
   });
 
   q.sellerFrozen.all(sellerId).forEach(function (o) {
-    if (seller.balance >= o.total) {
+    if (seller.balance >= requiredFor(o)) {
       db.prepare("UPDATE seller_orders SET status = 'Pending', frozen_reason = NULL WHERE id = ?").run(o.id);
     }
   });
@@ -1084,9 +1094,9 @@ function sellerSummary(me) {
   const vip = vipFor(fresh.balance);
   const open = q.sellerOpen.all(me.id);
   /* an open order the wallet cannot cover yet — the gap, wherever it is shown */
-  const frozen = open.filter(function (o) { return o.total > fresh.balance; });
+  const frozen = open.filter(function (o) { return requiredFor(o) > fresh.balance; });
   const shortfall = frozen.reduce(function (max, o) {
-    return Math.max(max, money(o.total - fresh.balance));
+    return Math.max(max, money(requiredFor(o) - fresh.balance));
   }, 0);
 
   return {
@@ -1117,7 +1127,9 @@ function sellerSummary(me) {
     frozen: frozen.length,
     frozenShortfall: shortfall > 0 ? shortfall : 0,
     /* what the wallet has to make up before the frozen order can go through */
-    gap: frozen.length ? gapOf(fresh.balance, Math.max.apply(null, frozen.map(function (o) { return o.total; }))) : null
+    gap: frozen.length
+      ? gapOf(fresh.balance, Math.max.apply(null, frozen.map(requiredFor)))
+      : null
   };
 }
 
@@ -1413,7 +1425,7 @@ function sellerApi(req, res, me, parts, method, body) {
       /* the tab asks for the orders that are waiting on money, which is a
          question about the balance rather than about a stored status */
       rows = q.sellerOpen.all(me.id).filter(function (o) {
-        return o.total > holder.balance || o.status === 'Freezing';
+        return requiredFor(o) > holder.balance || o.status === 'Freezing';
       });
     } else {
       rows = q.sellerOrdersByStatus.all(me.id, status);
@@ -1427,8 +1439,8 @@ function sellerApi(req, res, me, parts, method, body) {
       const held = q.userById.get(me.id);
       /* short of the money is a different sentence from "finish this one
          first", and it is the balance that decides which one they hear */
-      if (blocking.total > held.balance) {
-        return send(res, 409, Object.assign(gapOf(held.balance, blocking.total), {
+      if (requiredFor(blocking) > held.balance) {
+        return send(res, 409, Object.assign(gapOf(held.balance, requiredFor(blocking)), {
           order: mapSellerOrder(blocking, held.balance)
         }));
       }
@@ -1517,21 +1529,30 @@ function sellerApi(req, res, me, parts, method, body) {
     const commission = money((total * rate) / 100);
     const now = new Date();
     const code = orderCode(now);
-    /* An order worth more than the wallet holds is still a pending order —
-       it is simply carrying a gap, and the member closes it by recharging.
+
+    /* What the wallet has to hold before this one can go through. An ordinary
+       task asks for its own value, so a member with the money simply submits
+       it. The special order is a payment of its own: whatever they already
+       hold, plus the amount set for them — so the gap is the full amount and
+       a balance that happens to cover it does not swallow it. */
+    const required = lucky ? money(seller.balance + total) : total;
+
+    /* An order the wallet cannot cover yet is still a pending order — it is
+       simply carrying a gap, and the member closes it by recharging.
        'Freezing' is kept for the other thing entirely: an order left
        unsubmitted for hours, which maintain() moves there. */
-    const short = total > seller.balance;
+    const short = required > seller.balance;
 
     const info = db
       .prepare(
-        `INSERT INTO seller_orders (seller_id, code, product, image, price, qty, total, commission, rate, status, created_at, frozen_reason)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO seller_orders (seller_id, code, product, image, price, qty, total, commission, rate, status, created_at, frozen_reason, required_balance)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         me.id, code, item[0], item[2], price, qty, total, commission, rate,
         'Pending', stamp(now),
-        short ? 'Order value is above your balance' : null
+        short ? (lucky ? 'This order is paid for separately' : 'Order value is above your balance') : null,
+        required
       );
 
     /* the administrator sees the order the moment it is taken, not only once
@@ -1552,7 +1573,7 @@ function sellerApi(req, res, me, parts, method, body) {
       /* the app congratulates them only on the one the administrator named */
       lucky: lucky,
       orderNo: thisNo,
-      shortfall: short ? money(total - seller.balance) : 0
+      shortfall: short ? money(required - seller.balance) : 0
     }));
   }
 
@@ -1583,9 +1604,9 @@ function sellerApi(req, res, me, parts, method, body) {
     const holder = q.userById.get(me.id);
     /* the money has to be there before the order can go through; once a
        recharge closes the gap the same order submits with no status to flip */
-    if (order.status !== 'Completed' && order.total > holder.balance) {
-      return send(res, 400, Object.assign(gapOf(holder.balance, order.total), {
-        shortfall: money(order.total - holder.balance)
+    if (order.status !== 'Completed' && requiredFor(order) > holder.balance) {
+      return send(res, 400, Object.assign(gapOf(holder.balance, requiredFor(order)), {
+        shortfall: money(requiredFor(order) - holder.balance)
       }));
     }
     if (order.status === 'Freezing') {
