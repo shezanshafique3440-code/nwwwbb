@@ -372,7 +372,7 @@ window.DB = (function () {
       phone: '787878787878',
       bank: {
         method: 'Bank Transfer',
-        bank: 'ICICI Bank',
+        bank: 'ICICI',
         beneficiary: 'Malikkhan',
         account: '009610271835',
         type: 'Fixed_deposit',
@@ -384,7 +384,7 @@ window.DB = (function () {
       username: 'malik07',
       code: '78205',
       phone: '7894561233',
-      bank: { method: 'Bank Transfer', bank: 'ICICI Bank', beneficiary: '', account: '', type: 'Current', ifsc: '', branch: '' }
+      bank: { method: 'Bank Transfer', bank: 'ICICI', beneficiary: '', account: '', type: 'Current', ifsc: '', branch: '' }
     }
   };
 
@@ -684,7 +684,9 @@ window.DB = (function () {
         'Use the address shown on the payment page for this order only \u2014 addresses change between orders.',
         'Funds are credited once an administrator confirms the transfer, usually within ten minutes.'
       ],
-      banks: ['ICICI', 'HDFC', 'SBI', 'Axis Bank', 'Kotak', 'UBL', 'Meezan Bank'],
+      /* The named banks, and a way out for everyone else — no list covers
+         every bank, so 'Other' lets a member type their own. Keep it last. */
+      banks: ['ICICI', 'HDFC', 'SBI', 'Axis Bank', 'Kotak', 'Other'],
       withdrawMethods: ['USDT (TRC20)', 'USDT (ERC20)', 'Bank Transfer'],
       paymentMethod: { label: 'USDT', min: 50, max: 1000000 },
       /* team commission paid to the inviter on their members' earnings */

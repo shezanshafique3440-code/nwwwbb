@@ -1708,6 +1708,11 @@ function sellerApi(req, res, me, parts, method, body) {
       if (!store.verifyPassword(body.password || '', seller.password)) {
         return send(res, 400, { error: 'Your login password is not right' });
       }
+      /* 'Other' is the way into the box, never the name that comes out of it */
+      const bankName = String(body.bank || '').trim();
+      if (!bankName || bankName.toLowerCase() === 'other') {
+        return send(res, 400, { error: 'Choose your bank, or type its name' });
+      }
       if (!String(body.beneficiary || '').trim()) return send(res, 400, { error: 'Beneficiary name is required' });
       if (!String(body.account || '').trim()) return send(res, 400, { error: 'Bank account number is required' });
       if (!String(body.ifsc || '').trim()) return send(res, 400, { error: 'IFSC is required' });
@@ -1715,7 +1720,7 @@ function sellerApi(req, res, me, parts, method, body) {
       db.prepare(
         "UPDATE users SET bank_method = 'Bank Transfer', bank_name = ?, bank_beneficiary = ?, bank_account = ?, bank_ifsc = ? WHERE id = ?"
       ).run(
-        String(body.bank || ''), String(body.beneficiary).trim(),
+        bankName, String(body.beneficiary).trim(),
         String(body.account).trim(), String(body.ifsc).trim(), me.id
       );
       return send(res, 200, { ok: true });

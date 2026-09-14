@@ -121,6 +121,52 @@
     return p[2] + '-' + p[1] + '-' + p[0];
   };
 
+  /* The bank name field: the banks the platform names, and 'Other' for every
+     bank it does not. Picking 'Other' opens a box to type the name into, and
+     a name already saved that is not on the list comes back the same way — so
+     a member who typed their own bank still sees it when they return. */
+  const OTHER_BANK = 'Other';
+
+  function bankField(banks, current) {
+    const list = banks || [];
+    const saved = String(current || '');
+    const known = list.indexOf(saved) > -1 && saved !== OTHER_BANK;
+    const custom = !known && saved ? saved : '';
+    return (
+      '<div class="s-input-group"><span class="s-hint-label">Bank name</span>' +
+      '<select class="s-input" id="bank">' +
+      (known || custom ? '' : '<option value="" selected>Select your bank</option>') +
+      list.map(function (n) {
+        const on = n === OTHER_BANK ? !!custom : n === saved;
+        return '<option' + (on ? ' selected' : '') + '>' + esc(n) + '</option>';
+      }).join('') +
+      '</select></div>' +
+      '<div class="s-input-group" id="bankOtherWrap"' + (custom ? '' : ' hidden') + '>' +
+      '<label class="s-req">Bank name</label>' +
+      '<input class="s-input" id="bankOther" placeholder="Type your bank name" value="' + esc(custom) + '"></div>'
+    );
+  }
+
+  /* Wire the box to the picker, and read whichever of the two holds the name. */
+  function bankFieldReady(root) {
+    const sel = root.querySelector('#bank');
+    const wrap = root.querySelector('#bankOtherWrap');
+    if (!sel || !wrap) return;
+    sel.addEventListener('change', function () {
+      const other = sel.value === OTHER_BANK;
+      wrap.hidden = !other;
+      if (other) root.querySelector('#bankOther').focus();
+    });
+  }
+
+  function bankFieldValue(root) {
+    const sel = root.querySelector('#bank');
+    if (!sel) return '';
+    if (sel.value !== OTHER_BANK) return sel.value;
+    const box = root.querySelector('#bankOther');
+    return box ? box.value.trim() : '';
+  }
+
   function toast(msg) {
     let stack = document.querySelector('.s-toast-stack');
     if (!stack) {
@@ -1176,12 +1222,7 @@
     api('GET', '/seller/bank').then(function (b) {
       main.innerHTML =
         '<p class="s-page-title">Your bank card information</p>' +
-        '<div class="s-input-group"><span class="s-hint-label">Bank name</span>' +
-        '<select class="s-input" id="bank">' +
-        b.banks.map(function (n) {
-          return '<option' + (n === b.bank ? ' selected' : '') + '>' + esc(n) + '</option>';
-        }).join('') +
-        '</select></div>' +
+        bankField(b.banks, b.bank) +
         '<div class="s-input-group"><label class="s-req">Beneficiary Name</label>' +
         '<input class="s-input" id="beneficiary" value="' + esc(b.beneficiary) + '"></div>' +
         '<div class="s-input-group"><label class="s-req">Bank Account Number</label>' +
@@ -1194,11 +1235,15 @@
         '<div class="s-form-card"><p class="s-form-note" style="margin:0">Do not enter the bank password, and do not ' +
         'disclose your bank card information to others</p></div>';
 
+      bankFieldReady(main);
+
       main.querySelector('#go').addEventListener('click', function (e) {
         const btn = e.currentTarget;
+        const chosen = bankFieldValue(main);
+        if (!chosen) return toast('Please choose your bank, or type its name');
         btn.disabled = true;
         api('PUT', '/seller/bank', {
-          bank: main.querySelector('#bank').value,
+          bank: chosen,
           beneficiary: main.querySelector('#beneficiary').value,
           account: main.querySelector('#account').value,
           ifsc: main.querySelector('#ifsc').value,
@@ -1221,12 +1266,7 @@
         if (!m) return '<p class="s-form-note" style="text-align:left">Choose how you want to be paid.</p>';
         if (isBank(m)) {
           return (
-            '<div class="s-input-group"><span class="s-hint-label">Bank name</span>' +
-            '<select class="s-input" id="bank">' +
-            w.banks.map(function (n) {
-              return '<option' + (n === w.bank ? ' selected' : '') + '>' + esc(n) + '</option>';
-            }).join('') +
-            '</select></div>' +
+            bankField(w.banks, w.bank) +
             '<div class="s-input-group"><label class="s-req">Beneficiary Name</label>' +
             '<input class="s-input" id="beneficiary" value="' + esc(w.beneficiary) + '"></div>' +
             '<div class="s-input-group"><label class="s-req">Bank Account Number</label>' +
@@ -1268,6 +1308,8 @@
               'not disclose your bank card information to others</p></div>'
             : '');
 
+        bankFieldReady(main);
+
         main.querySelector('#method').addEventListener('change', function (e) {
           draw(e.target.value);
         });
@@ -1275,6 +1317,8 @@
         main.querySelector('#go').addEventListener('click', function (e) {
           const btn = e.currentTarget;
           const password = main.querySelector('#pw').value;
+          const chosen = isBank(m) ? bankFieldValue(main) : '';
+          if (isBank(m) && !chosen) return toast('Please choose your bank, or type its name');
           btn.disabled = true;
 
           const done = function (what) {
@@ -1286,13 +1330,13 @@
 
           if (isBank(m)) {
             api('PUT', '/seller/bank', {
-              bank: main.querySelector('#bank').value,
+              bank: chosen,
               beneficiary: main.querySelector('#beneficiary').value,
               account: main.querySelector('#account').value,
               ifsc: main.querySelector('#ifsc').value,
               password: password
             }).then(function () {
-              w.bank = main.querySelector('#bank').value;
+              w.bank = chosen;
               w.beneficiary = main.querySelector('#beneficiary').value;
               w.account = main.querySelector('#account').value;
               w.ifsc = main.querySelector('#ifsc').value;
