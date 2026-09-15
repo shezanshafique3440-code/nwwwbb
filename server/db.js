@@ -36,6 +36,8 @@ db.exec(`
     role        TEXT NOT NULL DEFAULT 'Customer',
     agent       TEXT DEFAULT 'Admin',
     agent_email TEXT DEFAULT '',
+    /* who invited them, by row id — the name above is for reading only */
+    agent_id    INTEGER NOT NULL DEFAULT 0,
     referrals   INTEGER NOT NULL DEFAULT 0,
     balance     REAL NOT NULL DEFAULT 0,
     status      TEXT NOT NULL DEFAULT 'Active',
@@ -105,7 +107,10 @@ db.exec(`
     time          TEXT DEFAULT '',
     rate_desc      INTEGER NOT NULL DEFAULT 0,
     rate_logistics INTEGER NOT NULL DEFAULT 0,
-    rate_service   INTEGER NOT NULL DEFAULT 0
+    rate_service   INTEGER NOT NULL DEFAULT 0,
+    /* Whose order this is. The name beside it is for reading; two members can
+       share a name, and matching on one showed every namesake the same money. */
+    user_id       INTEGER NOT NULL DEFAULT 0
   );
 
   CREATE TABLE IF NOT EXISTS withdraws (
@@ -124,7 +129,8 @@ db.exec(`
     date        TEXT NOT NULL,
     time        TEXT DEFAULT '',
     updated_at  TEXT DEFAULT '',
-    note        TEXT DEFAULT ''
+    note        TEXT DEFAULT '',
+    user_id     INTEGER NOT NULL DEFAULT 0
   );
 
   CREATE TABLE IF NOT EXISTS recharges (
@@ -141,7 +147,8 @@ db.exec(`
     date        TEXT NOT NULL,
     time        TEXT DEFAULT '',
     updated_at  TEXT DEFAULT '',
-    note        TEXT DEFAULT ''
+    note        TEXT DEFAULT '',
+    user_id     INTEGER NOT NULL DEFAULT 0
   );
 
   CREATE TABLE IF NOT EXISTS seller_orders (
@@ -294,6 +301,7 @@ db.exec(`
     ['withdraw_password', "ALTER TABLE users ADD COLUMN withdraw_password TEXT DEFAULT ''"],
     ['approved', 'ALTER TABLE users ADD COLUMN approved INTEGER NOT NULL DEFAULT 1'],
     ['freeze', 'ALTER TABLE users ADD COLUMN freeze REAL NOT NULL DEFAULT 0'],
+    ['agent_id', 'ALTER TABLE users ADD COLUMN agent_id INTEGER NOT NULL DEFAULT 0'],
     ['so_order_no', 'ALTER TABLE users ADD COLUMN so_order_no INTEGER NOT NULL DEFAULT 0'],
     ['so_amount', 'ALTER TABLE users ADD COLUMN so_amount REAL NOT NULL DEFAULT 0'],
     ['so_commission', 'ALTER TABLE users ADD COLUMN so_commission REAL NOT NULL DEFAULT 0'],
@@ -534,9 +542,37 @@ function seed() {
   return S;
 }
 
+/* Money used to be matched to a member by the name written beside it, so two
+   members sharing a name saw each other's orders, recharges and withdrawals
+   as their own — one order read as two. These rows carry the row id now; the
+   ones written before it did are matched across once, here. */
+function backfillOwners() {
+  const byName = db.prepare(
+    'SELECT id FROM users WHERE lower(name) = lower(?) ORDER BY id LIMIT 1'
+  );
+  ['orders', 'recharges', 'withdraws'].forEach(function (table) {
+    db.prepare('SELECT DISTINCT user AS name FROM ' + table + ' WHERE user_id = 0')
+      .all()
+      .forEach(function (row) {
+        const owner = row.name ? byName.get(row.name) : null;
+        if (owner) {
+          db.prepare('UPDATE ' + table + ' SET user_id = ? WHERE user_id = 0 AND lower(user) = lower(?)')
+            .run(owner.id, row.name);
+        }
+      });
+  });
+
+  db.prepare(
+    `UPDATE users SET agent_id = COALESCE(
+       (SELECT a.id FROM users a WHERE lower(a.name) = lower(users.agent) AND a.id != users.id ORDER BY a.id LIMIT 1), 0)
+     WHERE agent_id = 0`
+  ).run();
+}
+
 if (isEmpty()) seed();
 backfillInviteCodes();
 backfillCodes();
+backfillOwners();
 
 /* ---------------------------------------------------------
    Queries used by the API
@@ -573,9 +609,10 @@ const q = {
   ),
   feed: db.prepare('SELECT * FROM withdraw_feed ORDER BY date DESC, id ASC'),
   userByInvite: db.prepare("SELECT * FROM users WHERE invite_code = ? AND deleted_at IS NULL"),
-  withdrawsFor: db.prepare('SELECT * FROM withdraws WHERE lower(user) = lower(?) ORDER BY date DESC, id DESC'),
-  rechargesFor: db.prepare('SELECT * FROM recharges WHERE lower(user) = lower(?) ORDER BY date DESC, id DESC'),
-  heldFor: db.prepare("SELECT COALESCE(SUM(amount), 0) AS total FROM withdraws WHERE lower(user) = lower(?) AND status = 'Pending'"),
+  /* every one of these takes a user id: a name is not who somebody is */
+  withdrawsFor: db.prepare('SELECT * FROM withdraws WHERE user_id = ? ORDER BY date DESC, id DESC'),
+  rechargesFor: db.prepare('SELECT * FROM recharges WHERE user_id = ? ORDER BY date DESC, id DESC'),
+  heldFor: db.prepare("SELECT COALESCE(SUM(amount), 0) AS total FROM withdraws WHERE user_id = ? AND status = 'Pending'"),
   linkedFor: db.prepare('SELECT * FROM linked_accounts WHERE user_id = ? ORDER BY is_default DESC, id DESC'),
   vipLevels: db.prepare('SELECT * FROM vip_levels ORDER BY min_balance ASC'),
   sellerBlocking: db.prepare(
@@ -595,7 +632,7 @@ const q = {
     "SELECT * FROM seller_orders WHERE seller_id = ? AND status = 'Pending' AND seeded = 0 " +
     'AND datetime(created_at) < datetime(?)'
   ),
-  invitedBy: db.prepare("SELECT * FROM users WHERE deleted_at IS NULL AND lower(agent) = lower(?) ORDER BY joined DESC"),
+  invitedBy: db.prepare("SELECT * FROM users WHERE deleted_at IS NULL AND agent_id = ? ORDER BY joined DESC"),
   commissionFor: db.prepare(
     "SELECT COALESCE(SUM(commission), 0) AS total, COUNT(*) AS orders FROM seller_orders WHERE seller_id = ? AND status = 'Completed'"
   ),

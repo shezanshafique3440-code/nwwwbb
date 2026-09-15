@@ -309,7 +309,7 @@ window.DB = (function () {
 
   /* --- Agents --- */
   const agents = [
-    { id: 3, name: 'vj', email: 'bltan00789@hotmail.com', role: 'Agent', referrals: 0, balance: 0, status: 'Active', joined: '2026-08-20' },
+    { id: 3, name: 'vj2', email: 'bltan00789@hotmail.com', role: 'Agent', referrals: 0, balance: 0, status: 'Active', joined: '2026-08-20' },
     { id: 2, name: 'vj', email: 'altan00789@hotmail.com', role: 'Agent', referrals: 0, balance: 0, status: 'Active', joined: '2026-08-20' },
     { id: 1, name: 'agent', email: 'agent@gmail.com', role: 'Agent', referrals: 6, balance: 0, status: 'Active', joined: '2026-08-14' }
   ];
@@ -327,7 +327,7 @@ window.DB = (function () {
     ['Malik07', 'malik07@gmail.com', AGENT_ACC, 7050, '2026-08-23'],
     ['Neha sharma', 'neha.sharma@gmail.com', AGENT_ACC, 1826, '2026-08-21'],
     ['jutt', 'jutt@gmail.com', AGENT_ACC, 2000, '2026-08-20'],
-    ['vj', 'vj.mall@gmail.com', AGENT_ACC, 340, '2026-08-20'],
+    ['vj.mall', 'vj.mall@gmail.com', AGENT_ACC, 340, '2026-08-20'],
     ['Anil kumar Srivastava', 'anil.srivastava@gmail.com', ADMIN_AGENT, 96, '2026-08-20'],
     ['mahi.018', 'mahi018@gmail.com', ADMIN_AGENT, 412.5, '2026-08-20'],
     ['Sahil malik', 'shujjahmalik@gamil.com', ADMIN_AGENT, 1690, '2026-08-19'],

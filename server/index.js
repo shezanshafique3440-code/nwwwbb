@@ -123,7 +123,7 @@ function mapUser(u) {
     row.rate = vip.rate;
     row.dailyOrders = vip.daily_orders;
     row.orders = q.sellerCount.get(u.id, 'Completed').n;
-    row.team = q.invitedBy.all(u.name).length;
+    row.team = q.invitedBy.all(u.id).length;
   }
   return row;
 }
@@ -336,12 +336,21 @@ function updateRow(name, id, body) {
   /* an approved recharge tops the account up; a refused withdrawal
      releases the amount that was held when it was requested */
   if (name === 'recharges' && current.status !== 'Completed' && patch.status === 'Completed') {
-    db.prepare('UPDATE users SET balance = balance + ? WHERE lower(name) = lower(?)').run(current.amount, current.user);
+    credit(current.user_id, current.amount);
   }
   if (name === 'withdraws' && current.status === 'Pending' && patch.status === 'Rejected') {
-    db.prepare('UPDATE users SET balance = balance + ? WHERE lower(name) = lower(?)').run(current.amount, current.user);
+    credit(current.user_id, current.amount);
   }
   return readRow(name, id);
+}
+
+/* Move money on one account, by row id. It used to be done by the name on
+   the row, which paid every member who happened to share it. Balances are
+   kept on the cent, so a total never drifts a fraction below what an order
+   asks for and reads as a gap of $0.00 that nobody can close. */
+function credit(userId, amount) {
+  if (!userId) return;
+  db.prepare('UPDATE users SET balance = ROUND(balance + ?, 2) WHERE id = ?').run(Number(amount) || 0, userId);
 }
 
 function pick(obj, fields) {
@@ -430,6 +439,10 @@ async function api(req, res, url) {
       if (!name || (!email && !phone)) return send(res, 400, { error: 'A mobile number or email is required' });
       if (email && q.userByEmail.get(email)) return send(res, 409, { error: 'That email is already registered' });
       if (phone && q.userByPhone.get(phone)) return send(res, 409, { error: 'That mobile number is already registered' });
+      /* Two members sharing a name used to share their money on every screen
+         that looked them up by it. Rows carry a row id now, but a name is
+         still how people refer to each other here, so keep them apart. */
+      if (q.userByName.get(name)) return send(res, 409, { error: 'That name is already taken' });
 
       /* Signing up makes a customer. The site has one door and one kind of
          account behind it; the seeded Seller rows are the older demo records
@@ -446,10 +459,13 @@ async function api(req, res, url) {
       const inviterName = inviter ? inviter.name : given;
       const info = db
         .prepare(
-          `INSERT INTO users (name, email, password, role, agent, agent_email, referrals, balance, status, joined)
-           VALUES (?, ?, ?, 'Customer', ?, ?, 0, 0, 'Active', ?)`
+          `INSERT INTO users (name, email, password, role, agent, agent_id, agent_email, referrals, balance, status, joined)
+           VALUES (?, ?, ?, 'Customer', ?, ?, ?, 0, 0, 'Active', ?)`
         )
-        .run(name, email, store.hashPassword(body.password), inviterName, inviter ? inviter.email : '', today());
+        .run(
+          name, email, store.hashPassword(body.password), inviterName,
+          inviter ? inviter.id : 0, inviter ? inviter.email : '', today()
+        );
 
       if (inviter && inviter.role === 'Agent') {
         db.prepare('UPDATE users SET referrals = referrals + 1 WHERE id = ?').run(inviter.id);
@@ -600,18 +616,18 @@ async function api(req, res, url) {
       if (!user) return send(res, 404, { error: 'User not found' });
 
       const orders = db
-        .prepare('SELECT * FROM orders WHERE lower(user) = lower(?) ORDER BY date DESC, id DESC LIMIT 10')
-        .all(user.name)
+        .prepare('SELECT * FROM orders WHERE user_id = ? ORDER BY date DESC, id DESC LIMIT 10')
+        .all(user.id)
         .map(RESOURCES.orders.map);
 
       const transactions = []
         .concat(
-          q.rechargesFor.all(user.name).map(function (r) {
+          q.rechargesFor.all(user.id).map(function (r) {
             return { id: 'r' + r.id, type: 'Recharge', flow: 'in', amount: r.amount, status: r.status, date: r.date };
           })
         )
         .concat(
-          q.withdrawsFor.all(user.name).map(function (w) {
+          q.withdrawsFor.all(user.id).map(function (w) {
             return { id: 'w' + w.id, type: 'Withdrawal', flow: 'out', amount: w.amount, status: w.status, date: w.date };
           })
         )
@@ -627,11 +643,11 @@ async function api(req, res, url) {
         completedOrders: q.sellerCount.get(user.id, 'Completed').n,
         orders: orders,
         transactions: transactions,
-        withdrawals: q.withdrawsFor.all(user.name).map(function (w) {
+        withdrawals: q.withdrawsFor.all(user.id).map(function (w) {
           return { id: w.id, amount: w.amount, note: w.note || '', status: w.status, date: w.date };
         }),
         agentInfo: agent ? { name: agent.name, email: agent.email } : { name: user.agent || 'Admin', email: '' },
-        referrals: q.invitedBy.all(user.name).map(function (u) {
+        referrals: q.invitedBy.all(user.id).map(function (u) {
           return {
             id: u.id,
             name: u.name,
@@ -655,8 +671,8 @@ async function api(req, res, url) {
       }
       const info = db
         .prepare(
-          `INSERT INTO users (name, email, password, role, agent, agent_email, referrals, balance, status, joined)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          `INSERT INTO users (name, email, password, role, agent, agent_id, agent_email, referrals, balance, status, joined)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .run(
           String(body.name || '').trim(),
@@ -664,6 +680,7 @@ async function api(req, res, url) {
           store.hashPassword(body.password || 'password'),
           body.role === 'Agent' ? 'Agent' : 'Customer',
           body.agent || 'Admin',
+          agent ? agent.id : 0,
           agent ? agent.email : body.agent === 'Admin' ? 'admin@gmail.com' : '',
           Number(body.referrals || 0),
           Number(body.balance || 0),
@@ -726,13 +743,15 @@ async function api(req, res, url) {
         );
       }
       db.prepare(
-        `UPDATE users SET name = ?, email = ?, role = ?, agent = ?, agent_email = ?,
+        `UPDATE users SET name = ?, email = ?, role = ?, agent = ?, agent_id = ?, agent_email = ?,
          referrals = ?, balance = ?, status = ? WHERE id = ?`
       ).run(
         body.name != null ? body.name : user.name,
         body.email != null ? body.email : user.email,
         body.role || user.role,
         body.agent != null ? body.agent : user.agent,
+        /* the inviter moves by row id, so a rename cannot hand a member to a namesake */
+        body.agent != null ? (agent ? agent.id : 0) : user.agent_id,
         agent ? agent.email : body.agent === 'Admin' ? 'admin@gmail.com' : user.agent_email,
         body.referrals != null ? Number(body.referrals) : user.referrals,
         body.balance != null ? Number(body.balance) : user.balance,
@@ -833,7 +852,7 @@ async function api(req, res, url) {
         id
       );
       if (order.status !== 'Completed' && status === 'Completed') {
-        db.prepare('UPDATE users SET balance = balance + ? WHERE id = ?').run(order.commission, order.seller_id);
+        credit(order.seller_id, order.commission);
       }
       return send(res, 200, { ok: true });
     }
@@ -963,7 +982,14 @@ function vipFor(balance) {
    they grabbed it. Orders made before that column existed fall back to the
    total, which is what they always meant. */
 function requiredFor(o) {
-  return Number(o.required_balance) > 0 ? Number(o.required_balance) : Number(o.total);
+  return money(Number(o.required_balance) > 0 ? Number(o.required_balance) : Number(o.total));
+}
+
+/* Is the wallet short of what this order asks? Answered to the cent: a
+   balance a fraction under the total is not a gap anybody can close, and
+   asking them to "add $0.00" is no answer at all. */
+function shortOf(balance, required) {
+  return money(required) - money(balance) >= 0.005;
 }
 
 function mapSellerOrder(o, balance) {
@@ -972,7 +998,7 @@ function mapSellerOrder(o, balance) {
      recharge — rather than a SUBMIT button that the server will refuse. */
   const open = o.status === 'Pending' || o.status === 'Freezing';
   const needs = requiredFor(o);
-  const short = open && balance != null && needs > balance;
+  const short = open && balance != null && shortOf(balance, needs);
   return {
     gap: short ? gapOf(balance, needs) : null,
     id: o.id,
@@ -1012,7 +1038,7 @@ function maintain(sellerId) {
   });
 
   q.sellerFrozen.all(sellerId).forEach(function (o) {
-    if (seller.balance >= requiredFor(o)) {
+    if (!shortOf(seller.balance, requiredFor(o))) {
       db.prepare("UPDATE seller_orders SET status = 'Pending', frozen_reason = NULL WHERE id = ?").run(o.id);
     }
   });
@@ -1094,7 +1120,7 @@ function sellerSummary(me) {
   const vip = vipFor(fresh.balance);
   const open = q.sellerOpen.all(me.id);
   /* an open order the wallet cannot cover yet — the gap, wherever it is shown */
-  const frozen = open.filter(function (o) { return requiredFor(o) > fresh.balance; });
+  const frozen = open.filter(function (o) { return shortOf(fresh.balance, requiredFor(o)); });
   const shortfall = frozen.reduce(function (max, o) {
     return Math.max(max, money(requiredFor(o) - fresh.balance));
   }, 0);
@@ -1137,12 +1163,16 @@ function sellerSummary(me) {
 function teamOf(seller) {
   const rates = [TEAM_RATES.level1, TEAM_RATES.level2, TEAM_RATES.level3];
   const members = [];
-  let frontier = [seller.name];
+  let frontier = [seller.id];
+  /* one member is counted once, however the tree is shaped */
+  const seen = {};
 
   for (let depth = 0; depth < 3 && frontier.length; depth++) {
     let next = [];
-    frontier.forEach(function (name) {
-      q.invitedBy.all(name).forEach(function (u) {
+    frontier.forEach(function (id) {
+      q.invitedBy.all(id).forEach(function (u) {
+        if (u.id === seller.id || seen[u.id]) return;
+        seen[u.id] = true;
         const earned = q.commissionFor.get(u.id);
         members.push({
           id: u.id,
@@ -1155,7 +1185,7 @@ function teamOf(seller) {
           /* what this member earns the inviter */
           share: money((earned.total * rates[depth]) / 100)
         });
-        next.push(u.name);
+        next.push(u.id);
       });
     });
     frontier = next;
@@ -1210,7 +1240,7 @@ function sellerApi(req, res, me, parts, method, body) {
       /* whether there is an account to be paid into, and what is missing */
       payout: payoutOf(fresh),
       /* money held by withdrawal requests waiting for approval */
-      frozenAmount: q.heldFor.get(fresh.name).total
+      frozenAmount: q.heldFor.get(fresh.id).total
     }));
   }
 
@@ -1219,7 +1249,7 @@ function sellerApi(req, res, me, parts, method, body) {
     const seller = q.userById.get(me.id);
     const rows = [];
 
-    q.rechargesFor.all(seller.name).forEach(function (r) {
+    q.rechargesFor.all(seller.id).forEach(function (r) {
       rows.push({
         id: 'r' + r.id,
         kind: 'Recharge',
@@ -1231,7 +1261,7 @@ function sellerApi(req, res, me, parts, method, body) {
       });
     });
 
-    q.withdrawsFor.all(seller.name).forEach(function (w) {
+    q.withdrawsFor.all(seller.id).forEach(function (w) {
       rows.push({
         id: 'w' + w.id,
         kind: 'Withdrawal',
@@ -1261,7 +1291,7 @@ function sellerApi(req, res, me, parts, method, body) {
 
   if (head === 'withdrawals' && method === 'GET') {
     const seller = q.userById.get(me.id);
-    return send(res, 200, q.withdrawsFor.all(seller.name).map(function (w) {
+    return send(res, 200, q.withdrawsFor.all(seller.id).map(function (w) {
       return {
         id: w.id,
         amount: w.amount,
@@ -1425,7 +1455,7 @@ function sellerApi(req, res, me, parts, method, body) {
       /* the tab asks for the orders that are waiting on money, which is a
          question about the balance rather than about a stored status */
       rows = q.sellerOpen.all(me.id).filter(function (o) {
-        return requiredFor(o) > holder.balance || o.status === 'Freezing';
+        return shortOf(holder.balance, requiredFor(o)) || o.status === 'Freezing';
       });
     } else {
       rows = q.sellerOrdersByStatus.all(me.id, status);
@@ -1439,7 +1469,7 @@ function sellerApi(req, res, me, parts, method, body) {
       const held = q.userById.get(me.id);
       /* short of the money is a different sentence from "finish this one
          first", and it is the balance that decides which one they hear */
-      if (requiredFor(blocking) > held.balance) {
+      if (shortOf(held.balance, requiredFor(blocking))) {
         return send(res, 409, Object.assign(gapOf(held.balance, requiredFor(blocking)), {
           order: mapSellerOrder(blocking, held.balance)
         }));
@@ -1541,7 +1571,7 @@ function sellerApi(req, res, me, parts, method, body) {
        simply carrying a gap, and the member closes it by recharging.
        'Freezing' is kept for the other thing entirely: an order left
        unsubmitted for hours, which maintain() moves there. */
-    const short = required > seller.balance;
+    const short = shortOf(seller.balance, required);
 
     const info = db
       .prepare(
@@ -1560,11 +1590,11 @@ function sellerApi(req, res, me, parts, method, body) {
        completed ones */
     const at = stamp(now).split(' ');
     db.prepare(
-      `INSERT INTO orders (code, user, customer_code, product, sku, image, price, qty, total,
+      `INSERT INTO orders (code, user, user_id, customer_code, product, sku, image, price, qty, total,
          shipping, discount, commission, status, date, time, rate_desc, rate_logistics, rate_service)
-       VALUES (?, ?, ?, ?, '', ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, 0, 0, 0)`
+       VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, 0, 0, 0)`
     ).run(
-      code, seller.name, seller.phone || '', item[0], item[2],
+      code, seller.name, seller.id, seller.phone || '', item[0], item[2],
       price, qty, total, commission, 'Pending', at[0], at[1] || ''
     );
 
@@ -1604,7 +1634,7 @@ function sellerApi(req, res, me, parts, method, body) {
     const holder = q.userById.get(me.id);
     /* the money has to be there before the order can go through; once a
        recharge closes the gap the same order submits with no status to flip */
-    if (order.status !== 'Completed' && requiredFor(order) > holder.balance) {
+    if (order.status !== 'Completed' && shortOf(holder.balance, requiredFor(order))) {
       return send(res, 400, Object.assign(gapOf(holder.balance, requiredFor(order)), {
         shortfall: money(requiredFor(order) - holder.balance)
       }));
@@ -1616,7 +1646,7 @@ function sellerApi(req, res, me, parts, method, body) {
 
     const now = new Date();
     db.prepare("UPDATE seller_orders SET status = 'Completed', submitted_at = ? WHERE id = ?").run(stamp(now), id);
-    db.prepare('UPDATE users SET balance = balance + ? WHERE id = ?').run(order.commission, me.id);
+    credit(me.id, order.commission);
     store.addRevenue(order.total);
 
     /* the row the administrator has been watching since the grab now closes,
@@ -1631,11 +1661,11 @@ function sellerApi(req, res, me, parts, method, body) {
     /* an order seeded before this build has no row of its own yet */
     if (!marked.changes) {
       db.prepare(
-        `INSERT INTO orders (code, user, customer_code, product, sku, image, price, qty, total,
+        `INSERT INTO orders (code, user, user_id, customer_code, product, sku, image, price, qty, total,
            shipping, discount, commission, status, date, time, rate_desc, rate_logistics, rate_service)
-         VALUES (?, ?, ?, ?, '', ?, ?, ?, ?, 0, 0, ?, 'Completed', ?, ?, ?, ?, ?)`
+         VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, 0, 0, ?, 'Completed', ?, ?, ?, ?, ?)`
       ).run(
-        order.code, buyer.name, buyer.phone || '', order.product, order.image,
+        order.code, buyer.name, buyer.id, buyer.phone || '', order.product, order.image,
         order.price, order.qty, order.total, order.commission,
         at[0], at[1] || '', order.rating || 0, order.rating2 || 0, order.rating3 || 0
       );
@@ -1670,12 +1700,12 @@ function sellerApi(req, res, me, parts, method, body) {
       });
     });
 
-    q.rechargesFor.all(seller.name).forEach(function (r) {
+    q.rechargesFor.all(seller.id).forEach(function (r) {
       if (r.status !== 'Completed') return;
       rows.push({ at: r.date + ' ' + (r.time || '00:00:00'), tag: 'recharge', amount: r.amount, sign: 1 });
     });
 
-    q.withdrawsFor.all(seller.name).forEach(function (w) {
+    q.withdrawsFor.all(seller.id).forEach(function (w) {
       if (w.status === 'Rejected') return;
       rows.push({ at: w.date + ' ' + (w.time || '00:00:00'), tag: 'withdrawal', amount: w.amount, sign: -1 });
     });
@@ -1690,7 +1720,7 @@ function sellerApi(req, res, me, parts, method, body) {
     const kind = parts[1];
 
     if (kind === 'recharge') {
-      const list = q.rechargesFor.all(seller.name);
+      const list = q.rechargesFor.all(seller.id);
       return send(res, 200, {
         cumulative: money(list.reduce(function (a, r) { return a + (r.status === 'Completed' ? r.amount : 0); }, 0)),
         rows: list.map(function (r) {
@@ -1700,7 +1730,7 @@ function sellerApi(req, res, me, parts, method, body) {
     }
 
     if (kind === 'withdraw') {
-      const list = q.withdrawsFor.all(seller.name);
+      const list = q.withdrawsFor.all(seller.id);
       return send(res, 200, {
         cumulative: money(list.reduce(function (a, w) { return a + (w.status === 'Approved' ? w.amount : 0); }, 0)),
         rows: list.map(function (w) {
@@ -1757,8 +1787,8 @@ function sellerApi(req, res, me, parts, method, body) {
     const txn = crypto.randomBytes(5).toString('hex');
     const seller = q.userById.get(me.id);
     db.prepare(
-      "INSERT INTO recharges (user, email, amount, method, txn, status, date) VALUES (?, ?, ?, ?, ?, 'Pending', ?)"
-    ).run(seller.name, seller.email, amount, limits.label, txn, today());
+      "INSERT INTO recharges (user, user_id, email, amount, method, txn, status, date) VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?)"
+    ).run(seller.name, seller.id, seller.email, amount, limits.label, txn, today());
     return send(res, 201, { ok: true, amount: amount, txn: txn, method: limits.label });
   }
 
@@ -1782,10 +1812,10 @@ function sellerApi(req, res, me, parts, method, body) {
     const onFile = /bank/i.test(payout.method) ? seller.bank_account : seller.wallet;
     const account = String(body.account || onFile || seller.phone || seller.email);
     db.prepare(
-      "INSERT INTO withdraws (user, email, amount, method, account, status, date, note) VALUES (?, ?, ?, ?, ?, 'Pending', ?, '')"
-    ).run(seller.name, seller.email, amount, String(body.method || payout.method || 'USDT (TRC20)'), account, today());
+      "INSERT INTO withdraws (user, user_id, email, amount, method, account, status, date, note) VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?, '')"
+    ).run(seller.name, seller.id, seller.email, amount, String(body.method || payout.method || 'USDT (TRC20)'), account, today());
     /* the amount is held until an administrator approves the request */
-    db.prepare('UPDATE users SET balance = balance - ? WHERE id = ?').run(amount, me.id);
+    credit(me.id, -amount);
     return send(res, 201, { ok: true, amount: amount, summary: sellerSummary(me) });
   }
 

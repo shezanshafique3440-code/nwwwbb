@@ -1694,8 +1694,69 @@
     if (lang) lang.addEventListener('click', function () { window.location.href = 'language.html'; });
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
-  else boot();
+  /* ---------------------------------------------------------
+     The customer-service widget floats at the bottom right on a layer of its
+     own, which put it straight on top of the My tab: clients told to open My
+     got the chat instead. The bar now outranks it for taps, and this lifts
+     the widget clear so it is not left hidden behind the bar either.
+
+     The widget is a third party and names nothing we can select on, so its
+     launcher is found by shape: a fixed box, anchored low, that we did not
+     put on the page ourselves.
+     --------------------------------------------------------- */
+  function chatLiftsClearOfTabbar() {
+    const bar = document.querySelector('.s-tabbar');
+    if (!bar) return;
+    const lift = Math.round(bar.getBoundingClientRect().height) + 12;
+
+    const ours = function (el) {
+      /* our own overlays: the shell, notices, toasts, dialogs */
+      return el.id === 'app' || /(^|\s)s-/.test(el.className || '') || el.hasAttribute('data-app');
+    };
+
+    Array.prototype.forEach.call(document.body.children, function (el) {
+      if (el.nodeType !== 1 || ours(el)) return;
+      if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE' || el.tagName === 'LINK') return;
+
+      const css = window.getComputedStyle(el);
+      if (css.position !== 'fixed' || css.display === 'none') return;
+
+      const box = el.getBoundingClientRect();
+      if (!box.height) return;
+      /* A launcher: small, and sitting on the bottom edge. An opened chat
+         panel is tall and is left where it is — lifting that would push its
+         top off the screen. */
+      if (box.height > 140) return;
+      const sitsLow = window.innerHeight - box.bottom < lift + 40;
+      if (!sitsLow) return;
+
+      if (el.getAttribute('data-lifted') === String(lift)) return;
+      el.style.setProperty('bottom', lift + 'px', 'important');
+      el.setAttribute('data-lifted', String(lift));
+    });
+  }
+
+  function watchForChatWidget() {
+    chatLiftsClearOfTabbar();
+    /* it loads on its own schedule, and re-lays itself out when opened */
+    const observer = new MutationObserver(chatLiftsClearOfTabbar);
+    observer.observe(document.body, { childList: true, subtree: false });
+    window.addEventListener('resize', chatLiftsClearOfTabbar);
+    /* a few passes cover the gap between the script landing and its DOM */
+    let tries = 0;
+    const timer = setInterval(function () {
+      chatLiftsClearOfTabbar();
+      if (++tries >= 20) clearInterval(timer);
+    }, 500);
+  }
+
+  function start() {
+    boot();
+    watchForChatWidget();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
 })();
 
 (function(){var s=document.createElement('script');s.src='https://plugin-code.salesmartly.com/js/project_817643_847406_1788056247.js';document.head.appendChild(s);})();
