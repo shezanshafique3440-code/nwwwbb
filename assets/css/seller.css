@@ -22,6 +22,9 @@
   --s-shadow: 0 2px 10px rgba(23, 23, 40, 0.06);
   --s-radius: 12px;
   --s-app-w: 500px;
+  /* The corner the customer-service button sits in, kept clear of the
+     tab bar. Widen it if that button is ever made bigger. */
+  --s-chat-corner: 76px;
   --s-font: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
 }
@@ -476,13 +479,11 @@ body.seller {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   align-items: end;
-  padding: 8px 0 10px;
-  /* The bar stays on its ordinary layer. The customer-service widget floats
-     at the bottom right on a layer of its own and used to land on the My tab;
-     chatLiftsClearOfTabbar() in seller.js moves it clear and only then raises
-     this bar above it. Raising it unconditionally would hide the widget
-     behind the bar whenever that move failed — and that button is the way to
-     customer service, so it has to stay in plain sight. */
+  /* The customer-service widget floats in the bottom right corner on a layer
+     of its own. It belongs to another company: its markup is not ours to read
+     and moving it cannot be relied on. So the corner it sits in is left free
+     here instead — the tabs end before it, and My is never underneath it. */
+  padding: 8px var(--s-chat-corner) 10px 0;
   z-index: 30;
 }
 .s-tabbar a {
@@ -495,6 +496,8 @@ body.seller {
   text-decoration: none;
 }
 .s-tabbar a.active { color: var(--s-teal); }
+/* the raised Start button rides with its own slot, so the shortened row does
+   not leave it sitting on top of the tab beside it */
 .s-tabbar .fab-slot { position: relative; }
 .s-tabbar .fab {
   position: absolute;
