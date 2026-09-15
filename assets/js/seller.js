@@ -1707,47 +1707,81 @@
   function chatLiftsClearOfTabbar() {
     const bar = document.querySelector('.s-tabbar');
     if (!bar) return;
-    const lift = Math.round(bar.getBoundingClientRect().height) + 12;
+    const barBox = bar.getBoundingClientRect();
+    /* clear of the bar with room to spare, so the whole My tab reads */
+    const lift = Math.round(barBox.height) + 16;
 
-    const ours = function (el) {
-      /* our own overlays: the shell, notices, toasts, dialogs */
-      return el.id === 'app' || /(^|\s)s-/.test(el.className || '') || el.hasAttribute('data-app');
+    /* Our own DOM is the shell and the overlays we put up; everything else on
+       the page came from the customer-service widget. Two locks, because
+       moving one of our own elements by mistake wrecks the layout: the shell
+       root, and the s- prefix every class of ours carries. */
+    const isOurs = function (el) {
+      if (el.closest && el.closest('.app, .s-notice, .s-modal, .s-toast-stack')) return true;
+      const cls = typeof el.className === 'string' ? el.className : '';
+      return /(^|\s)s-/.test(cls);
     };
 
-    Array.prototype.forEach.call(document.body.children, function (el) {
-      if (el.nodeType !== 1 || ours(el)) return;
-      if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE' || el.tagName === 'LINK') return;
+    /* The widget nests its launcher inside a wrapper of its own, and that
+       wrapper is often not positioned at all — so the fixed box has to be
+       looked for underneath it, not only at the top level. */
+    const outside = [];
+    Array.prototype.forEach.call(document.body.children, function (child) {
+      if (child.nodeType !== 1) return;
+      if (/^(SCRIPT|STYLE|LINK|TEMPLATE|NOSCRIPT)$/.test(child.tagName)) return;
+      if (isOurs(child)) return;
+      outside.push(child);
+      Array.prototype.forEach.call(child.querySelectorAll('*'), function (el) { outside.push(el); });
+    });
 
+    outside.forEach(function (el) {
+      if (isOurs(el)) return;
       const css = window.getComputedStyle(el);
-      if (css.position !== 'fixed' || css.display === 'none') return;
+      if (css.position !== 'fixed' || css.display === 'none' || css.visibility === 'hidden') return;
 
-      const box = el.getBoundingClientRect();
-      if (!box.height) return;
-      /* A launcher: small, and sitting on the bottom edge. An opened chat
-         panel is tall and is left where it is — lifting that would push its
-         top off the screen. */
-      if (box.height > 140) return;
-      const sitsLow = window.innerHeight - box.bottom < lift + 40;
-      if (!sitsLow) return;
+      let box = el.getBoundingClientRect();
+      if (!box.width || !box.height) return;
+      /* an opened chat panel is tall; lifting that would push its top off screen */
+      if (box.height > 160) return;
+      /* only what actually lands on the bar */
+      if (box.bottom <= barBox.top) return;
 
-      if (el.getAttribute('data-lifted') === String(lift)) return;
+      /* Move it by whichever handle the widget used: set the bottom, then
+         look again. If it did not move it is anchored some other way, and a
+         transform shifts it whatever that way was. */
       el.style.setProperty('bottom', lift + 'px', 'important');
-      el.setAttribute('data-lifted', String(lift));
+      el.style.setProperty('top', 'auto', 'important');
+
+      box = el.getBoundingClientRect();
+      if (box.bottom > barBox.top) {
+        const by = Math.ceil(box.bottom - barBox.top) + 16;
+        el.style.setProperty('transform', 'translateY(-' + by + 'px)', 'important');
+      }
     });
   }
 
   function watchForChatWidget() {
-    chatLiftsClearOfTabbar();
-    /* it loads on its own schedule, and re-lays itself out when opened */
-    const observer = new MutationObserver(chatLiftsClearOfTabbar);
-    observer.observe(document.body, { childList: true, subtree: false });
-    window.addEventListener('resize', chatLiftsClearOfTabbar);
-    /* a few passes cover the gap between the script landing and its DOM */
+    let queued = false;
+    const soon = function () {
+      if (queued) return;
+      queued = true;
+      window.requestAnimationFrame(function () {
+        queued = false;
+        chatLiftsClearOfTabbar();
+      });
+    };
+
+    soon();
+    /* it loads on its own schedule, and lays itself out again when opened */
+    new MutationObserver(soon).observe(document.body, {
+      childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class']
+    });
+    window.addEventListener('resize', soon);
+    /* and a few passes cover the gap before its DOM exists at all */
     let tries = 0;
     const timer = setInterval(function () {
-      chatLiftsClearOfTabbar();
-      if (++tries >= 20) clearInterval(timer);
-    }, 500);
+      soon();
+      if (++tries >= 30) clearInterval(timer);
+    }, 400);
   }
 
   function start() {

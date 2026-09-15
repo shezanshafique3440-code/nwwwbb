@@ -1140,8 +1140,10 @@ function sellerSummary(me) {
     dailyLimit: Number(fresh.so_limit || 0) > 0
       ? Math.min(Number(fresh.so_limit), ORDER_CAP)
       : vip.current.daily_orders,
-    todayCommission: q.sellerCommissionOn.get(me.id, today()).total,
-    totalCommission: q.sellerCommission.get(me.id).total,
+    /* a run of commissions summed in floating point lands a fraction off,
+       so every figure that stands for money is rounded to the cent */
+    todayCommission: money(q.sellerCommissionOn.get(me.id, today()).total),
+    totalCommission: money(q.sellerCommission.get(me.id).total),
     /* what the open orders will pay once they go through — the special order
        shows its commission from the moment it is grabbed, not only after */
     pendingCommission: money(open.reduce(function (sum, o) { return sum + o.commission; }, 0)),

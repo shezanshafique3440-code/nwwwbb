@@ -260,9 +260,20 @@ db.exec(`
     ['time', "ALTER TABLE orders ADD COLUMN time TEXT DEFAULT ''"],
     ['rate_desc', 'ALTER TABLE orders ADD COLUMN rate_desc INTEGER NOT NULL DEFAULT 0'],
     ['rate_logistics', 'ALTER TABLE orders ADD COLUMN rate_logistics INTEGER NOT NULL DEFAULT 0'],
-    ['rate_service', 'ALTER TABLE orders ADD COLUMN rate_service INTEGER NOT NULL DEFAULT 0']
+    ['rate_service', 'ALTER TABLE orders ADD COLUMN rate_service INTEGER NOT NULL DEFAULT 0'],
+    ['user_id', 'ALTER TABLE orders ADD COLUMN user_id INTEGER NOT NULL DEFAULT 0']
   ].forEach(function (pair) {
     if (oCols.length && oCols.indexOf(pair[0]) === -1) db.exec(pair[1]);
+  });
+
+  /* The money tables learned who a row belongs to by row id. A database made
+     before that has the tables already, so CREATE TABLE leaves them as they
+     were — the column has to be added here or every read of it fails. */
+  [['recharges', 'recharges'], ['withdraws', 'withdraws']].forEach(function (t) {
+    const cols = db.prepare('PRAGMA table_info(' + t[1] + ')').all().map(function (c) { return c.name; });
+    if (cols.length && cols.indexOf('user_id') === -1) {
+      db.exec('ALTER TABLE ' + t[1] + ' ADD COLUMN user_id INTEGER NOT NULL DEFAULT 0');
+    }
   });
 
   const pCols = db.prepare('PRAGMA table_info(products)').all().map(function (c) { return c.name; });
@@ -551,6 +562,11 @@ function backfillOwners() {
     'SELECT id FROM users WHERE lower(name) = lower(?) ORDER BY id LIMIT 1'
   );
   ['orders', 'recharges', 'withdraws'].forEach(function (table) {
+    /* Startup must survive a table this build has not reached yet: a server
+       that will not boot is worse than a column filled in on the next run. */
+    const cols = db.prepare('PRAGMA table_info(' + table + ')').all().map(function (c) { return c.name; });
+    if (cols.indexOf('user_id') === -1 || cols.indexOf('user') === -1) return;
+
     db.prepare('SELECT DISTINCT user AS name FROM ' + table + ' WHERE user_id = 0')
       .all()
       .forEach(function (row) {
@@ -562,6 +578,8 @@ function backfillOwners() {
       });
   });
 
+  const userCols = db.prepare('PRAGMA table_info(users)').all().map(function (c) { return c.name; });
+  if (userCols.indexOf('agent_id') === -1) return;
   db.prepare(
     `UPDATE users SET agent_id = COALESCE(
        (SELECT a.id FROM users a WHERE lower(a.name) = lower(users.agent) AND a.id != users.id ORDER BY a.id LIMIT 1), 0)
@@ -569,10 +587,25 @@ function backfillOwners() {
   ).run();
 }
 
+/* The VIP tiers live in a table, so a database made before the commission
+   was brought down to a few percent keeps paying the old 20-40%. Only the
+   untouched original rates are corrected — an administrator who has set
+   their own keeps them. */
+function backfillVipRates() {
+  const WAS = { VIP1: 20, VIP2: 25, VIP3: 30, VIP4: 34, VIP5: 40 };
+  const NOW = { VIP1: 3, VIP2: 4, VIP3: 5, VIP4: 6.5, VIP5: 8 };
+  const rows = db.prepare('SELECT id, name, rate FROM vip_levels').all();
+  const untouched = rows.length && rows.every(function (r) { return WAS[r.name] === r.rate; });
+  if (!untouched) return;
+  const set = db.prepare('UPDATE vip_levels SET rate = ? WHERE id = ?');
+  rows.forEach(function (r) { set.run(NOW[r.name], r.id); });
+}
+
 if (isEmpty()) seed();
 backfillInviteCodes();
 backfillCodes();
 backfillOwners();
+backfillVipRates();
 
 /* ---------------------------------------------------------
    Queries used by the API
