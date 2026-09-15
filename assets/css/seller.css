@@ -22,9 +22,11 @@
   --s-shadow: 0 2px 10px rgba(23, 23, 40, 0.06);
   --s-radius: 12px;
   --s-app-w: 500px;
-  /* The corner the customer-service button sits in, kept clear of the
-     tab bar. Widen it if that button is ever made bigger. */
-  --s-chat-corner: 76px;
+  /* Just the corner the customer-service button stands in — its own width
+     plus the margin it keeps from the edge, and not a pixel more. */
+  --s-chat-corner: 62px;
+  /* My carries a two-letter label, so it is the tab that gives up width */
+  --s-my-col: 46px;
   --s-font: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
 }
@@ -479,12 +481,25 @@ body.seller {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   align-items: end;
-  /* The customer-service widget floats in the bottom right corner on a layer
-     of its own. It belongs to another company: its markup is not ours to read
-     and moving it cannot be relied on. So the corner it sits in is left free
-     here instead — the tabs end before it, and My is never underneath it. */
-  padding: 8px var(--s-chat-corner) 10px 0;
+  padding: 8px 0 10px;
   z-index: 30;
+}
+
+/* The customer-service widget floats in the bottom right corner on a layer of
+   its own. It belongs to another company — its markup is not ours to read and
+   moving it cannot be relied on — so the corner it stands in is left free
+   here instead.
+
+   Only the corner. The four wide tabs keep the room their words need; the
+   width comes off My, whose label is two letters and has it to spare. And
+   only while the bar actually reaches that corner: on a screen wider than the
+   app the bar is centred, the button falls outside it, and nothing is given
+   up at all. */
+@media (max-width: 623px) {
+  .s-tabbar {
+    grid-template-columns: repeat(4, 1fr) var(--s-my-col);
+    padding-right: var(--s-chat-corner);
+  }
 }
 .s-tabbar a {
   display: flex;
@@ -494,6 +509,8 @@ body.seller {
   color: #b6b6be;
   font-size: 12.5px;
   text-decoration: none;
+  /* a label that wraps turns the row into two ragged lines */
+  white-space: nowrap;
 }
 .s-tabbar a.active { color: var(--s-teal); }
 /* the raised Start button rides with its own slot, so the shortened row does
@@ -517,6 +534,13 @@ body.seller {
   font-size: 13px;
   box-shadow: 0 6px 16px rgba(22, 179, 174, 0.45);
   text-decoration: none;
+}
+
+/* On the narrowest phones the labels would sit shoulder to shoulder, so they
+   are set a little smaller and My gives up a few more pixels. */
+@media (max-width: 374px) {
+  .s-tabbar { --s-my-col: 38px; }
+  .s-tabbar a { font-size: 10.5px; gap: 3px; }
 }
 
 /* ---------------------------------------------------------
