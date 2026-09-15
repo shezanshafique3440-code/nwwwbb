@@ -1721,17 +1721,25 @@
       return /(^|\s)s-/.test(cls);
     };
 
-    /* The widget nests its launcher inside a wrapper of its own, and that
-       wrapper is often not positioned at all — so the fixed box has to be
-       looked for underneath it, not only at the top level. */
+    /* The widget hides its launcher well: inside a wrapper of its own, often
+       behind a shadow root, and sometimes hung off <html> rather than <body>.
+       So everything outside our shell is walked, shadow roots included. */
+    let moved = false;
     const outside = [];
-    Array.prototype.forEach.call(document.body.children, function (child) {
-      if (child.nodeType !== 1) return;
-      if (/^(SCRIPT|STYLE|LINK|TEMPLATE|NOSCRIPT)$/.test(child.tagName)) return;
-      if (isOurs(child)) return;
-      outside.push(child);
-      Array.prototype.forEach.call(child.querySelectorAll('*'), function (el) { outside.push(el); });
-    });
+    const walk = function (node, depth) {
+      if (depth > 12) return;
+      const kids = node.children || [];
+      for (let i = 0; i < kids.length; i++) {
+        const el = kids[i];
+        if (el.nodeType !== 1) continue;
+        if (/^(SCRIPT|STYLE|LINK|TEMPLATE|NOSCRIPT|HEAD|META|TITLE)$/.test(el.tagName)) continue;
+        if (isOurs(el)) continue;
+        outside.push(el);
+        if (el.shadowRoot) walk(el.shadowRoot, depth + 1);
+        walk(el, depth + 1);
+      }
+    };
+    walk(document.documentElement, 0);
 
     outside.forEach(function (el) {
       if (isOurs(el)) return;
@@ -1755,8 +1763,16 @@
       if (box.bottom > barBox.top) {
         const by = Math.ceil(box.bottom - barBox.top) + 16;
         el.style.setProperty('transform', 'translateY(-' + by + 'px)', 'important');
+        box = el.getBoundingClientRect();
       }
+      if (box.bottom <= barBox.top) moved = true;
     });
+
+    /* Only once the widget is standing clear does the bar go above it, so a
+       tap on My can never reach the chat. If it could not be moved the bar
+       stays put: hiding the customer-service button behind it would be the
+       worse of the two faults. */
+    if (moved) bar.style.setProperty('z-index', '2147483000', 'important');
   }
 
   function watchForChatWidget() {

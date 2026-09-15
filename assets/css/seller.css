@@ -477,12 +477,13 @@ body.seller {
   grid-template-columns: repeat(5, 1fr);
   align-items: end;
   padding: 8px 0 10px;
-  /* The tab bar takes its own taps. The customer-service widget floats at the
-     bottom right on its own layer, and used to land on top of the My tab —
-     tapping My opened the chat instead of the account. Nothing covers the
-     bar now, and chatLiftsClearOfTabbar() in seller.js moves the widget up
-     so it is not hidden behind it either. */
-  z-index: 2147483000;
+  /* The bar stays on its ordinary layer. The customer-service widget floats
+     at the bottom right on a layer of its own and used to land on the My tab;
+     chatLiftsClearOfTabbar() in seller.js moves it clear and only then raises
+     this bar above it. Raising it unconditionally would hide the widget
+     behind the bar whenever that move failed — and that button is the way to
+     customer service, so it has to stay in plain sight. */
+  z-index: 30;
 }
 .s-tabbar a {
   display: flex;
